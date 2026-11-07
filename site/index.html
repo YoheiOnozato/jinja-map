@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>群馬の神社マップ（試作）</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  html, body, #map { margin: 0; height: 100%; }
+  #bar { position: absolute; z-index: 1000; top: 10px; left: 50px; right: 10px; max-width: 420px;
+         background: #fff; padding: 8px; border-radius: 6px; box-shadow: 0 1px 6px #0004; font: 14px sans-serif; }
+  #q { width: 100%; box-sizing: border-box; padding: 6px; font-size: 16px; }
+  #info { margin-top: 4px; color: #555; font-size: 12px; }
+</style>
+</head>
+<body>
+<div id="bar">
+  <input id="q" type="search" placeholder="神社名・祭神で検索（例：赤城、八幡）">
+  <div id="info">読み込み中…</div>
+</div>
+<div id="map"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const map = L.map('map').setView([36.5, 139.0], 9);
+L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
+  attribution: '地図：<a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院</a> / データ：© OpenStreetMap contributors',
+  maxZoom: 18
+}).addTo(map);
+
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let all = [], layer = L.layerGroup().addTo(map);
+
+function draw(list) {
+  layer.clearLayers();
+  list.forEach(f => {
+    const p = f.properties, [lon, lat] = f.geometry.coordinates;
+    // 試作：Wikipedia 記事のある神社は大きく表示（社格による大きさ分けは次の段階）
+    const big = !!p.wikipedia;
+    const m = L.circleMarker([lat, lon], {
+      radius: big ? 8 : 4, color: big ? '#b3261e' : '#555', weight: 1,
+      fillColor: big ? '#e8524a' : '#999', fillOpacity: 0.8
+    });
+    let html = '<b>' + esc(p.name || '（名称不明）') + '</b>';
+    if (p.enshrine) html += '<br>祭神：' + esc(p.enshrine);
+    if (p.wikipedia) {
+      const [lang, title] = p.wikipedia.split(':');
+      html += '<br><a target="_blank" rel="noopener" href="https://' + esc(lang) + '.wikipedia.org/wiki/' + encodeURIComponent(title) + '">Wikipedia</a>';
+    }
+    if (p.website && /^https?:\/\//.test(p.website)) html += '<br><a target="_blank" rel="noopener" href="' + esc(p.website) + '">公式サイト</a>';
+    m.bindPopup(html).addTo(layer);
+  });
+  document.getElementById('info').textContent = list.length + ' / ' + all.length + ' 社を表示';
+}
+
+fetch('data/shrines.geojson').then(r => r.json()).then(g => {
+  all = g.features; draw(all);
+}).catch(() => { document.getElementById('info').textContent = 'データを読み込めませんでした'; });
+
+document.getElementById('q').addEventListener('input', e => {
+  const q = e.target.value.trim();
+  draw(!q ? all : all.filter(f => (f.properties.name + ' ' + f.properties.enshrine).includes(q)));
+});
+</script>
+</body>
+</html>
