@@ -1,5 +1,5 @@
 name: probe-data-source
-# 外部データの取り込みを試すだけの手動ワークフロー（サイトのデータは変更しない）
+# 外部データの中身を確認するだけの手動ワークフロー（サイトのデータは変更しない）
 on:
   workflow_dispatch:
 permissions:
@@ -9,5 +9,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: pip install pyproj
-      - run: python3 scripts/fetch_gunma_iseki.py --check
+      - run: python3 scripts/probe/wiki_castle.py
