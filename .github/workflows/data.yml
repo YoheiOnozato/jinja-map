@@ -30,6 +30,11 @@ jobs:
         run: python3 scripts/fetch_osm.py
       - name: Wikipedia から神社・古墳の記事を取得
         run: python3 scripts/fetch_wiki.py
+      - name: 群馬県オープンデータから古墳を取得（失敗しても続行）
+        continue-on-error: true
+        run: |
+          pip install pyproj
+          python3 scripts/fetch_gunma_iseki.py
       - name: データを統合
         run: python3 scripts/build_site_data.py
       - name: data ブランチに保存

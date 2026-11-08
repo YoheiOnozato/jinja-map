@@ -7,7 +7,8 @@
 
 | 項目 | 出どころ |
 | --- | --- |
-| 名称・位置（神社・古墳） | OpenStreetMap（ODbL） |
+| 名称・位置（神社・古墳・城） | OpenStreetMap（ODbL） |
+| 古墳の名称・位置（群馬県のみ・範囲の中心点で位置は目安） | 群馬県「遺跡・文化財」（群馬県、CC BY 4.0、加工して利用）https://toukei.pref.gunma.jp/zu240061/ |
 | 神社の社格・祭神・創建・由来 | Wikipedia 日本語版の各神社の記事（CC BY-SA） |
 | 古墳の指定・築造時期・規模・被葬者・説明 | Wikipedia 日本語版の各古墳の記事（CC BY-SA） |
 | 系統（八幡・稲荷など）・墳形・創建の時代・地図上の大きさ | 上記の名称・文章から**機械的に推定**したもの |
@@ -31,7 +32,8 @@
 データ作り（遅い）と公開（速い）を分けています。
 
 - `.github/workflows/data.yml`（build-data）… 毎週・手動・`scripts/` や `data/overrides.json` の変更時に動く。データを作って **`data` ブランチ**に保存する。
-  - `scripts/fetch_osm.py` … OpenStreetMap から神社・古墳を都県ごとに取得
+  - `scripts/fetch_osm.py` … OpenStreetMap から神社・古墳・城を都県ごとに取得
+  - `scripts/fetch_gunma_iseki.py` … 群馬県のオープンデータ（遺跡の範囲）から古墳を取り出す（他県は公開状況を確認してから追加）
   - `scripts/fetch_wiki.py` … Wikipedia のカテゴリから神社・古墳の記事を取得
   - `scripts/build_site_data.py` … 統合し、社格・系統・墳形・時代の推定、`data/overrides.json` の適用、近くの神社⇔古墳の紐付けをして書き出す
 - `.github/workflows/pages.yml`（build-and-deploy）… `site/` の変更時と、build-data の完了時に動く。`data` ブランチのデータを取り込んで GitHub Pages に公開する。画面だけの修正は数分で反映される。

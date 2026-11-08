@@ -167,7 +167,7 @@ def kofun_size(text):
     return "%s約%sm" % (m.group(1), m.group(3)) if m else ""
 
 
-def build_kofun(osm_k, wiki_k):
+def build_kofun(osm_k, wiki_k, gun_k=()):
     by_title = {w["title"]: w for w in wiki_k}
     for w in wiki_k:
         w["_n"] = norm_name(w["name"])
@@ -234,6 +234,30 @@ def build_kofun(osm_k, wiki_k):
             continue
         out.append(make(w["name"], w["lon"], w["lat"], w, None))
         added += 1
+    # 群馬県「遺跡・文化財」（周知の埋蔵文化財包蔵地）にある古墳のうち、まだ載っていないものを足す
+    gun_added = 0
+    cell = lambda la, lo: (int(la / 0.003), int(lo / 0.003))  # noqa: E731
+    grid = {}
+    for f in out:
+        lo, la = f["geometry"]["coordinates"]
+        grid.setdefault(cell(la, lo), []).append((norm_name(f["properties"]["name"]), la, lo))
+    for it in gun_k:
+        pn = norm_name(it["name"])
+        gy, gx = cell(it["lat"], it["lon"])
+        dup = False
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                for n_, la, lo in grid.get((gy + dy, gx + dx), ()):
+                    d = haversine(it["lat"], it["lon"], la, lo)
+                    if d < 150 or (n_ == pn and d < 1200):
+                        dup = True
+        if dup:
+            continue
+        f = make(it["name"], it["lon"], it["lat"], None, {"pref": "群馬県"})
+        f["properties"]["src"] = "gunma"
+        out.append(f)
+        grid.setdefault((gy, gx), []).append((pn, it["lat"], it["lon"]))
+        gun_added += 1
     # 都県が空のものは最寄りの点から補う
     pts = [(f["geometry"]["coordinates"][1], f["geometry"]["coordinates"][0], f["properties"]["pref"]) for f in out if f["properties"]["pref"]]
     for f in out:
@@ -247,7 +271,7 @@ def build_kofun(osm_k, wiki_k):
         if not pr["pref"] and pts:
             lo, la = f["geometry"]["coordinates"]
             pr["pref"] = min(pts, key=lambda t: (t[0] - la) ** 2 + (t[1] - lo) ** 2)[2]
-    stat = {"total": len(out), "osm": len(osm_k), "wiki_articles": len(wiki_k), "wiki_added": added,
+    stat = {"total": len(out), "osm": len(osm_k), "wiki_articles": len(wiki_k), "wiki_added": added, "gunma_added": gun_added,
             "kind_dist": {}, "rank_dist": {}}
     for f in out:
         k = f["properties"]["kind"]
@@ -432,7 +456,7 @@ def link_nearby(shrines, kofun, castles=()):
 DETAIL_KEYS = [
     ("osm_id", "o"), ("rank_label", "rl"), ("rank_src", "rs"), ("deity", "d"), ("founded", "f"), ("founded_year", "fy"),
     ("era_note", "en"), ("address", "a"), ("website", "w"), ("intro", "in"), ("history", "h"),
-    ("wikipedia", "wp"), ("wikidata", "wd"), ("verified", "vf"), ("size", "sz"), ("nearby", "nb"),
+    ("wikipedia", "wp"), ("wikidata", "wd"), ("verified", "vf"), ("size", "sz"), ("nearby", "nb"), ("src", "sr"),
 ]
 
 
@@ -494,6 +518,7 @@ def main():
     osm_c = load_opt("osm_castle.geojson", "features")
     wiki_c = load_opt("wiki_castle.json")
     wiki_k = load_opt("wiki_kofun.json")
+    gun_k = load_opt("gunma_kofun.json")
 
     by_title = {w["title"]: w for w in wiki}
     for w_ in wiki:
@@ -639,7 +664,7 @@ def main():
         k = str(f["properties"]["rank"])
         summary["rank_dist"][k] = summary["rank_dist"].get(k, 0) + 1
     # ---- 古墳 ----
-    kofun_features, kstat = build_kofun(osm_k, wiki_k)
+    kofun_features, kstat = build_kofun(osm_k, wiki_k, gun_k)
     summary["kofun"] = kstat
 
     # ---- 近くの神社・古墳（150m 以内で最も近いもの）をお互いに記録 ----

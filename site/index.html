@@ -205,7 +205,7 @@
       <p><b>データについて</b></p>
       <p>神社・古墳の位置・名前は <a href="https://www.openstreetmap.org/">OpenStreetMap</a>、主祭神・社格・創建・由来、古墳・城の指定・築造（築城）時期・被葬者（城主）は <a href="https://ja.wikipedia.org/">Wikipedia</a> から自動で集めています。社格・系統・創建の時代・人物は文章から機械的に読み取ったもので、誤りを含むことがあります。創建の時代は伝承を含みます。</p>
       <p id="stats" class="small"></p>
-      <p class="small">地図：国土地理院 ／ 神社・古墳・城データ：© OpenStreetMap contributors (ODbL)、Wikipedia (CC BY-SA)。情報のない神社・古墳・城は灰色や小さな点で表示します。</p>
+      <p class="small">地図：国土地理院 ／ 神社・古墳・城データ：© OpenStreetMap contributors (ODbL)、Wikipedia (CC BY-SA)、群馬県「遺跡・文化財」（群馬県、CC BY 4.0・加工して利用）。情報のない神社・古墳・城は灰色や小さな点で表示します。</p>
       <p class="small">神社（丸）・古墳（四角）・城（三角）の位置・社格・系統・由来・時代を一か所で調べられる、総合サイトを目指しています。画面上の「神社」「古墳」「城」で表示を切り替えられます。いまは試作版（関東1都6県）です。</p>
     </div>
   </div>
@@ -343,7 +343,7 @@ function popupHtml(p, lat, lon) {
   if (p.wikidata) h += '<a target="_blank" rel="noopener" href="https://www.wikidata.org/wiki/' + esc(p.wikidata) + '">Wikidata</a>';
   h += '</div>';
   const srcs = [];
-  srcs.push('名称・位置：' + (p.osm_id ? 'OpenStreetMap' : 'Wikipedia'));
+  srcs.push(p.src === 'gunma' ? '名称・位置：群馬県「遺跡・文化財」（周知の埋蔵文化財包蔵地の範囲の中心点。位置は目安）、<a target="_blank" rel="noopener" href="https://toukei.pref.gunma.jp/zu240061/">群馬県</a>、<a target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by/4.0/deed.ja">CC BY 4.0</a>（加工して利用）' : '名称・位置：' + (p.osm_id ? 'OpenStreetMap' : 'Wikipedia'));
   if (p.wikipedia) srcs.push((C ? '指定・築城・遺構・城主・説明：' : K ? '指定・築造時期・規模・被葬者・説明：' : '社格・祭神・創建・由来：') + 'Wikipedia「' + esc(p.wikipedia) + '」(CC BY-SA)');
   srcs.push(K ? '墳形：名称や説明の文字から自動で推定' : '系統・時代：上の文章から自動で推定');
   if (p.verified && p.verified.length) srcs.push('確認済み：運営が確認した項目');
