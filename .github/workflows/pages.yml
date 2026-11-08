@@ -1,6 +1,8 @@
 name: build-and-deploy
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
   schedule:
     - cron: "0 18 * * 0"   # 毎週月曜 3:00 (JST) にデータ更新
@@ -25,6 +27,8 @@ jobs:
       - name: 群馬県の神社データを取得
         run: python3 scripts/fetch_osm.py
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
