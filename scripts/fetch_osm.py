@@ -36,6 +36,7 @@ area["ISO3166-2"="%s"]->.a;
   nwr["historic"="archaeological_site"]["archaeological_site"="tumulus"](area.a);
   nwr["historic"="tomb"]["tomb"="tumulus"](area.a);
   nwr["historic"]["name"~"古墳|古墳群|塚古墳"](area.a);
+  nwr["name"~"古墳$|古墳群$"]["amenity"!="place_of_worship"]["religion"!="shinto"]["highway"!~"."]["railway"!~"."](area.a);
 );
 out center tags;
 """

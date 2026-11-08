@@ -172,7 +172,11 @@ def digest_kofun(title, a):
     # 情報欄の項目名は記事ごとに揺れるので、キーワードで拾う
     cleaned = {k: clean(v)[:120] for k, v in info.items() if clean(v)}
 
-    def find(*words):
+    def find(exact=(), words=()):
+        # 古墳の記事の情報欄は英語の項目名(name, built, designation1, location, type など)が使われている
+        for k in exact:
+            if cleaned.get(k):
+                return cleaned[k]
         for k, v in cleaned.items():
             if any(w in k for w in words):
                 return v
@@ -181,13 +185,13 @@ def digest_kofun(title, a):
     return {
         "title": title, "lat": a["lat"], "lon": a["lon"], "wikidata": a["wikidata"],
         "template": tpl, "info_keys": sorted(info.keys()),
-        "name": find("名称", "名前") or title,
-        "shape": find("形状", "形式", "墳形", "種類"),
-        "size": find("規模", "墳丘長", "全長", "直径"),
-        "built": find("築造", "時期", "年代"),
-        "buried": find("被葬者", "埋葬"),
-        "designation": find("指定", "史跡"),
-        "address": find("所在地", "住所"),
+        "name": find(("name",), ("名称", "名前")) or title,
+        "shape": find(("type",), ("形状", "形式", "墳形", "種類")),
+        "size": find((), ("規模", "墳丘長", "全長", "直径")),
+        "built": find(("built",), ("築造", "時期", "年代")),
+        "buried": find((), ("被葬者", "埋葬")),
+        "designation": find(("designation1", "designation_1"), ("指定",)),
+        "address": find(("location",), ("所在地", "住所")),
         "intro": intro[:400], "history": history.strip()[:1500],
     }
 
