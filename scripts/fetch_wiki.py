@@ -83,6 +83,41 @@ def fetch_articles(titles):
     return out
 
 
+PERSON_CAT = __import__("re").compile(r"^Category:(紀元前)?\d+年(生|没)$|生年不明|没年不明|生年不詳|没年不詳|日本の天皇|日本の皇族")
+
+
+def resolve_people(all_links):
+    """記事名の一覧から「人物」の記事だけを選び、{リンク名: 正式な記事名} を返す。"""
+    titles = sorted(all_links)
+    canon, is_person = {}, {}
+    for i in range(0, len(titles), 50):
+        batch = titles[i:i + 50]
+        cont = {}
+        while True:
+            data = call(dict(action="query", prop="categories", titles="|".join(batch), redirects="1",
+                             cllimit="max", **cont))
+            q = data.get("query", {})
+            for r in q.get("redirects", []):
+                canon[r["from"]] = r["to"]
+            for p in q.get("pages", []):
+                if p.get("missing"):
+                    continue
+                for c in p.get("categories", []):
+                    if PERSON_CAT.search(c["title"]):
+                        is_person[p["title"]] = True
+            if "continue" in data:
+                cont = data["continue"]
+            else:
+                break
+        time.sleep(0.25)
+    out = {}
+    for t in titles:
+        c = canon.get(t, t)
+        if is_person.get(c):
+            out[t] = c
+    return out
+
+
 def digest(title, a):
     tpl, info = find_infobox(a["wikitext"])
     sections = split_sections(a["wikitext"])
@@ -123,6 +158,12 @@ def main():
     print("カテゴリ一覧:", " / ".join(cats))
     arts = fetch_articles(titles)
     items = [digest(t, a) for t, a in arts.items()]
+    all_links = {l for x in items for l in x["links"]}
+    print(f"リンク先の記事 {len(all_links)} 件から人物を判定します")
+    people_map = resolve_people(all_links)
+    for x in items:
+        x["people"] = sorted({people_map[l] for l in x["links"] if l in people_map})
+    print("人物の例:", sorted(set(people_map.values()))[:30])
     with_coord = sum(1 for x in items if x["lat"] is not None)
     with_deity = sum(1 for x in items if x["deity"])
     with_rank = sum(1 for x in items if x["rank"])
@@ -132,7 +173,7 @@ def main():
         tpl_count[x["template"]] = tpl_count.get(x["template"], 0) + 1
     debug = {
         "categories": len(cats), "articles": len(items), "with_coord": with_coord,
-        "with_deity": with_deity, "with_rank": with_rank, "with_history": with_history,
+        "with_deity": with_deity, "with_rank": with_rank, "with_history": with_history, "with_people": sum(1 for x in items if x.get("people")),
         "templates": tpl_count,
         "sample_info_keys": next((x["info_keys"] for x in items if x["info_keys"]), []),
         "sample_titles": [x["title"] for x in items[:8]],
