@@ -42,6 +42,12 @@
   .card td { padding: 2px 0; } .card p { margin: 6px 0; }
   .card summary { color: var(--red); font-weight: bold; cursor: pointer; margin: 6px 0; }
   .src { font-size: 11px; color: #777; } .links a { margin-right: 10px; }
+  .eraRow { padding: 8px 6px; border-bottom: 1px dotted #d8c9a8; cursor: pointer; border-radius: 6px; }
+  .eraRow.on { background: #fff; outline: 2px solid var(--red); }
+  .eraHead { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .eraHead i { width: 12px; height: 12px; border-radius: 50%; }
+  .eraHead em { margin-left: auto; font-style: normal; color: #6b5d4a; }
+  .bar { height: 5px; background: #e8dfcb; border-radius: 3px; margin: 4px 0; } .bar span { display: block; height: 5px; border-radius: 3px; }
   .pp { color: #1a56b0; text-decoration: underline; cursor: pointer; margin-right: 8px; }
 </style>
 </head>
@@ -65,6 +71,8 @@
   <div id="tabs">
     <button data-t="filter" class="on">絞り込み</button>
     <button data-t="person">人物で探す</button>
+    <button data-t="era">時代の流れ</button>
+    <button data-t="learn">神社を知る</button>
     <button data-t="about">このサイト</button>
   </div>
   <div id="body">
@@ -78,6 +86,8 @@
         <option value="5">名神大社・官幣大社以上</option>
         <option value="6">一宮・二十二社のみ</option>
       </select>
+      <div class="small">点の色</div>
+      <select id="colorSel"><option value="kind">系統で色分け</option><option value="era">創建の時代で色分け</option></select>
       <div class="small">系統（タップで絞り込み・件数は社数）</div>
       <div id="kinds"></div>
       <button class="btn" id="showMap1">地図を見る</button>
@@ -89,12 +99,35 @@
       <p class="small" style="margin-top:12px">よく出る人物</p>
       <div class="chips" id="personChips"></div>
     </div>
+    <div class="pane" id="p-era">
+      <p>いつ頃建てられた神社か、時代ごとの社数です。タップするとその時代に創建された神社だけを地図に表示します（もう一度タップで解除）。</p>
+      <div id="eraList"></div>
+      <p class="small" id="eraNote"></p>
+      <button class="btn" id="showMap2">地図を見る</button>
+    </div>
+    <div class="pane" id="p-learn">
+      <p><b>社格（神社のランク）</b></p>
+      <p><b>式内社</b>：平安時代の『延喜式』神名帳（927年）に載っている神社。<br>
+         <b>一宮</b>：旧国（群馬なら上野国）で最も格が高いとされた神社。上野国一宮は貫前神社（富岡市）。<br>
+         <b>近代社格制度</b>：1871年から1946年まで国が定めた格付け。官幣社・国幣社・府県社・郷社・村社など。<br>
+         <b>別表神社</b>：社格制度の廃止後、神社本庁が有力な神社として別に扱っている神社。</p>
+      <p><b>系統（何を祀り、どこから広まった神社か）</b></p>
+      <p>神社に、お寺の「宗派」にあたる区分はありません。代わりに、祀る神様や本社の違いで「系統」に分けます。<br>
+         <b>八幡</b>：応神天皇などを祀り、武運の神として武家に崇敬された。<br>
+         <b>稲荷</b>：宇迦之御魂神などを祀り、五穀豊穣・商売繁盛の神。<br>
+         <b>天神</b>：菅原道真を祀る。学問の神。<br>
+         <b>諏訪</b>：建御名方神を祀る。信州の諏訪大社から広まった。<br>
+         <b>浅間</b>：木花咲耶姫を祀り、富士山の信仰と結びつく。<br>
+         <b>八坂・須賀（天王）</b>：素戔嗚尊を祀り、疫病除けの祇園信仰に通じる。<br>
+         <b>赤城・榛名・上州の山岳</b>：群馬の山を神として祀る山岳信仰。</p>
+      <p class="small">系統は社名と祭神の文字から機械的に分けています。複数に当てはまる神社は、最初に当たったものを表示します。</p>
+    </div>
     <div class="pane" id="p-about">
       <p><b>データについて</b></p>
-      <p>神社の位置・名前は <a href="https://www.openstreetmap.org/">OpenStreetMap</a>、主祭神・社格・創建・由来は <a href="https://ja.wikipedia.org/">Wikipedia</a> から自動で集めています。社格・系統・人物は文章から機械的に読み取ったもので、誤りを含むことがあります。</p>
+      <p>神社の位置・名前は <a href="https://www.openstreetmap.org/">OpenStreetMap</a>、主祭神・社格・創建・由来は <a href="https://ja.wikipedia.org/">Wikipedia</a> から自動で集めています。社格・系統・創建の時代・人物は文章から機械的に読み取ったもので、誤りを含むことがあります。創建の時代は伝承を含みます。</p>
       <p id="stats" class="small"></p>
       <p class="small">地図：国土地理院 ／ 神社データ：© OpenStreetMap contributors (ODbL)、Wikipedia (CC BY-SA)。情報のない神社は小さな灰色の点で表示します。</p>
-      <p class="small">試作版（群馬県のみ）。うまくいけば全国に広げる予定です。</p>
+      <p class="small">神社の位置・社格・系統・由来・時代を一か所で調べられる、神社の総合サイトを目指しています。いまは試作版（群馬県のみ）です。</p>
     </div>
   </div>
 </div>
@@ -112,7 +145,10 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp
 const RADIUS = {1: 3, 2: 5, 3: 6, 4: 8, 5: 11, 6: 14};
 const PALETTE = ['#e6194b','#3cb44b','#4363d8','#f58231','#911eb4','#46a3a3','#c1a300','#8c564b','#e377c2','#17becf','#7f7f7f','#bcbd22','#1f77b4','#d62728','#2ca02c','#9467bd','#ff7f0e','#555'];
 const kindColor = {};
-let all = [], persons = {}, activeKinds = new Set(), layer = L.layerGroup().addTo(map);
+let all = [], persons = {}, activeKinds = new Set(), activeEra = '', colorBy = 'kind', layer = L.layerGroup().addTo(map);
+const ERA_COLOR = {'旧石器':'#3b2a6b','縄文':'#4b2e83','弥生':'#5e35b1','古墳':'#6a3d9a','飛鳥':'#3f51b5','奈良':'#1976d2','平安':'#00897b','鎌倉':'#43a047','室町':'#9e9d24','安土桃山':'#f9a825','江戸':'#ef6c00','明治':'#d84315','大正':'#ad1457','昭和':'#6d4c41','平成':'#546e7a','令和':'#90a4ae'};
+const ERA_INFO = [['旧石器','約1.6万年前より前',''],['縄文','〜紀元前4世紀頃',''],['弥生','紀元前4世紀頃〜3世紀中頃',''],['古墳','3世紀中頃〜592年','山や岩を神として祀る信仰が国づくりと結びつく時代'],['飛鳥','592〜710年','仏教が入り、神を祀る制度が整い始める'],['奈良','710〜794年','『古事記』『日本書紀』がまとめられ、神仏習合が始まる'],['平安','794〜1185年','『延喜式』神名帳（927年）ができ、式内社・一宮の序列が整う'],['鎌倉','1185〜1333年','武士が八幡神などを厚く信仰し、神社が各地に勧請される'],['室町','1333〜1573年（南北朝・戦国を含む）','戦国大名や地域の領主が神社を保護する'],['安土桃山','1573〜1603年',''],['江戸','1603〜1868年','徳川家康を祀る東照宮が各地に建ち、参詣が広がる'],['明治','1868〜1912年','神仏分離（1868年）と近代社格制度（1871年）、神社の合祀'],['大正','1912〜1926年','明治神宮（1920年）が創建される'],['昭和','1926〜1989年','1946年に社格制度が廃止され、神社本庁ができる'],['平成','1989〜2019年',''],['令和','2019年〜','']];
+const eraColor = e => ERA_COLOR[e] || '#9e9e9e';
 const colorOf = k => kindColor[k] || (kindColor[k] = PALETTE[Object.keys(kindColor).length % PALETTE.length]);
 
 // ---- ポップアップ ----
@@ -120,9 +156,11 @@ function popupHtml(p, lat, lon) {
   let h = '<div class="card"><h3>' + esc(p.name) + '</h3>';
   if (p.kind) h += '<span class="tag k">' + esc(p.kind) + '</span>';
   if (p.rank_label) h += '<span class="tag r">' + esc(p.rank_label) + '</span>';
+  if (p.era) h += '<span class="tag" style="background:' + eraColor(p.era) + ';color:#fff">' + esc(p.era) + '時代の創建</span>';
   h += '<table>';
   const row = (k, v) => v ? '<tr><th>' + k + '</th><td>' + esc(v) + '</td></tr>' : '';
-  h += row('主祭神', p.deity) + row('社格', p.rank_label) + row('創建', p.founded) + row('所在地', p.address);
+  const eraTxt = p.era ? p.era + '時代' + (p.founded_year ? '（' + p.founded_year + '年頃）' : '') + (p.era_note ? '・' + p.era_note : '') : '';
+  h += row('主祭神', p.deity) + row('社格', p.rank_label) + row('創建', p.founded) + row('創建の時代', eraTxt) + row('所在地', p.address);
   if (p.website && /^(https?:\/\/)?[\w.-]+\.[a-z]{2,}/i.test(p.website)) {
     const u = /^https?:/.test(p.website) ? p.website : 'https://' + p.website;
     h += '<tr><th>公式サイト</th><td><a target="_blank" rel="noopener" href="' + esc(u) + '">' + esc(p.website.slice(0, 40)) + '</a></td></tr>';
@@ -164,6 +202,7 @@ function currentList() {
     const p = f.properties;
     if (p.rank < minRank) return false;
     if (activeKinds.size && !activeKinds.has(p.kind)) return false;
+    if (activeEra && p.era !== activeEra) return false;
     if (nameQ && !p.name.includes(nameQ)) return false;
     return terms ? matchPerson(f, terms) : true;
   });
@@ -173,7 +212,7 @@ function draw(fit) {
   layer.clearLayers();
   list.slice().sort((a, b) => a.properties.rank - b.properties.rank).forEach(f => {
     const p = f.properties, [lon, lat] = f.geometry.coordinates;
-    L.circleMarker([lat, lon], { radius: RADIUS[p.rank] || 3, color: '#fff', weight: 1, fillColor: colorOf(p.kind), fillOpacity: p.rank >= 2 ? 0.9 : 0.55 })
+    L.circleMarker([lat, lon], { radius: RADIUS[p.rank] || 3, color: '#fff', weight: 1, fillColor: colorBy === 'era' ? eraColor(p.era) : colorOf(p.kind), fillOpacity: p.rank >= 2 ? 0.9 : 0.55 })
       .bindPopup(() => popupHtml(p, lat, lon), { maxWidth: 340, autoPanPadding: [20, 80] })
       .bindTooltip(esc(p.name)).addTo(layer);
   });
@@ -221,10 +260,30 @@ Promise.all([
   $('personChips').innerHTML = Object.entries(pc).sort((a, b) => b[1] - a[1]).slice(0, 14)
     .map(([n, c]) => '<span data-p="' + esc(n) + '">' + esc(n) + '（' + c + '）</span>').join('');
   document.querySelectorAll('#personChips span').forEach(s => s.onclick = () => searchPerson(s.dataset.p));
+  buildEraList(sum);
   if (sum) $('stats').textContent = '収録 ' + sum.total + ' 社のうち、主祭神が分かるもの ' + sum.with_deity + ' 社、由来の文章があるもの ' + sum.with_history + ' 社、Wikipedia 記事があるもの ' + sum.wiki_articles + ' 社。更新日 ' + (sum.generated || '');
   draw(false);
 }).catch(() => { $('hint').textContent = 'データを読み込めませんでした'; });
 
+function buildEraList(sum) {
+  const cnt = {};
+  all.forEach(f => { if (f.properties.era) cnt[f.properties.era] = (cnt[f.properties.era] || 0) + 1; });
+  const known = Object.values(cnt).reduce((a, b) => a + b, 0);
+  const max = Math.max(1, ...Object.values(cnt));
+  $('eraList').innerHTML = ERA_INFO.map(([e, range, note]) => {
+    const n = cnt[e] || 0;
+    return '<div class="eraRow' + (activeEra === e ? ' on' : '') + '" data-e="' + e + '"><div class="eraHead"><i style="background:' + eraColor(e) + '"></i><b>' + e + '</b><span class="small">' + range + '</span><em>' + n + '社</em></div>' +
+      '<div class="bar"><span style="width:' + (n / max * 100) + '%;background:' + eraColor(e) + '"></span></div>' + (note ? '<div class="small">' + note + '</div>' : '') + '</div>';
+  }).join('');
+  $('eraNote').textContent = '創建の時代が分かる神社：' + known + ' / ' + all.length + ' 社（Wikipedia に創建の記述がある神社のみ。伝承・推定を含みます）';
+  document.querySelectorAll('.eraRow').forEach(r => r.onclick = () => {
+    activeEra = activeEra === r.dataset.e ? '' : r.dataset.e;
+    document.querySelectorAll('.eraRow').forEach(x => x.classList.toggle('on', x.dataset.e === activeEra));
+    draw(!!activeEra);
+  });
+}
+$('colorSel').onchange = () => { colorBy = $('colorSel').value; draw(false); };
+$('showMap2').onclick = () => { setSheet(false); draw(true); };
 $('go').onclick = () => draw(true);
 $('q').addEventListener('keydown', e => { if (e.key === 'Enter') draw(true); });
 $('q').addEventListener('input', () => { if (!$('q').value) draw(false); });

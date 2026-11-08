@@ -8,6 +8,10 @@ import json
 import math
 import os
 import re
+import sys
+
+sys.path.insert(0, os.path.dirname(__file__))
+from era import ERA_NAMES, estimate  # noqa: E402
 
 BASE = os.path.join(os.path.dirname(__file__), "..")
 OUT_DIR = os.path.join(BASE, "site", "data")
@@ -139,6 +143,7 @@ def main():
             score = max(score, 2)  # Wikipedia に記事があるだけで一段上げる
         kind = kind_of(name + " " + deity)
         text_for_person = " ".join([name, deity, intro, history])
+        e_year, e_era, e_note = estimate((w or {}).get("founded", ""), intro, history) if w else (None, "", "")
         return {
             "type": "Feature",
             "geometry": {"type": "Point", "coordinates": [round(lon, 6), round(lat, 6)]},
@@ -149,6 +154,9 @@ def main():
                 "rank_label": ((w or {}).get("rank", "") or rank_label)[:80],
                 "kind": kind,
                 "founded": (w or {}).get("founded", ""),
+                "founded_year": e_year,
+                "era": e_era,
+                "era_note": e_note,
                 "address": (w or {}).get("address", ""),
                 "website": (w or {}).get("website", "") or (osm_props or {}).get("website", ""),
                 "intro": intro[:300],
@@ -201,6 +209,8 @@ def main():
         "wiki_added": added,
         "wiki_skipped_no_coord": skipped_no_coord,
         "with_deity": sum(1 for f in features if f["properties"]["deity"]),
+        "with_era": sum(1 for f in features if f["properties"]["era"]),
+        "era_dist": {e: sum(1 for f in features if f["properties"]["era"] == e) for e in ERA_NAMES},
         "with_history": sum(1 for f in features if f["properties"]["history"]),
         "generated": datetime.date.today().isoformat(),
         "with_links": sum(1 for f in features if f["properties"]["links"]),
