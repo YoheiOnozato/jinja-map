@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>関東の神社マップ ― 社格・系統・由来</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
 <style>
   :root { --red: #b3261e; --paper: #f5f0e6; --ink: #2b2118; }
   html, body, #map { margin: 0; height: 100%; font-family: -apple-system, "Hiragino Mincho ProN", "Hiragino Sans", serif; color: var(--ink); }
@@ -205,7 +204,7 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="https://unpkg.com/supercluster@8.0.1/dist/supercluster.min.js"></script>
 <script>
 const map = L.map('map', { preferCanvas: true }).setView([36.0, 139.6], 8);
 L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
@@ -218,13 +217,9 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp
 const RADIUS = {1: 3, 2: 5, 3: 6, 4: 8, 5: 11, 6: 14};
 const PALETTE = ['#e6194b','#3cb44b','#4363d8','#f58231','#911eb4','#46a3a3','#c1a300','#8c564b','#e377c2','#17becf','#7f7f7f','#bcbd22','#1f77b4','#d62728','#2ca02c','#9467bd','#ff7f0e','#555'];
 const kindColor = {};
-let shownCount = 0;
-let all = [], persons = {}, activeKinds = new Set(), activeEra = '', colorBy = 'kind', layer = L.markerClusterGroup({
-  chunkedLoading: true, showCoverageOnHover: false, spiderfyOnMaxZoom: true, disableClusteringAtZoom: 15,
-  maxClusterRadius: () => shownCount > 150 ? 50 : 1,
-  iconCreateFunction: c => { const n = c.getChildCount(), k = n < 10 ? 'm0' : n < 100 ? 'm' : 'l', z = n < 10 ? 34 : n < 100 ? 40 : 48;
-    return L.divIcon({ html: '<div><span>' + n + '</span></div>', className: 'mc ' + (k === 'm0' ? '' : k), iconSize: [z, z] }); }
-}).addTo(map);
+let shownCount = 0, index = null;
+const shownLayers = new Map();
+let all = [], persons = {}, activeKinds = new Set(), activeEra = '', colorBy = 'kind', layer = L.layerGroup().addTo(map);
 
 const ERA_COLOR = {'旧石器':'#3b2a6b','縄文':'#4b2e83','弥生':'#5e35b1','古墳':'#6a3d9a','飛鳥':'#3f51b5','奈良':'#1976d2','平安':'#00897b','鎌倉':'#43a047','室町':'#9e9d24','安土桃山':'#f9a825','江戸':'#ef6c00','明治':'#d84315','大正':'#ad1457','昭和':'#6d4c41','平成':'#546e7a','令和':'#90a4ae'};
 const ERA_INFO = [['旧石器','約1.6万年前より前',''],['縄文','〜紀元前4世紀頃',''],['弥生','紀元前4世紀頃〜3世紀中頃',''],['古墳','3世紀中頃〜592年','山や岩を神として祀る信仰が国づくりと結びつく時代'],['飛鳥','592〜710年','仏教が入り、神を祀る制度が整い始める'],['奈良','710〜794年','『古事記』『日本書紀』がまとめられ、神仏習合が始まる'],['平安','794〜1185年','『延喜式』神名帳（927年）ができ、式内社・一宮の序列が整う'],['鎌倉','1185〜1333年','武士が八幡神などを厚く信仰し、神社が各地に勧請される'],['室町','1333〜1573年（南北朝・戦国を含む）','戦国大名や地域の領主が神社を保護する'],['安土桃山','1573〜1603年',''],['江戸','1603〜1868年','徳川家康を祀る東照宮が各地に建ち、参詣が広がる'],['明治','1868〜1912年','神仏分離（1868年）と近代社格制度（1871年）、神社の合祀'],['大正','1912〜1926年','明治神宮（1920年）が創建される'],['昭和','1926〜1989年','1946年に社格制度が廃止され、神社本庁ができる'],['平成','1989〜2019年',''],['令和','2019年〜','']];
@@ -293,6 +288,7 @@ function popupHtml(p, lat, lon) {
     h += row('公式サイト', '<a target="_blank" rel="noopener" href="' + esc(u) + '">' + esc(p.website.slice(0, 40)) + '</a>');
   }
   h += '</table>';
+  if (p.hd && !p._dl) h += '<p class="small">由来を読み込み中…</p>';
   if (p.intro) h += '<p>' + esc(p.intro) + '</p>';
   if (p.persons && p.persons.length) h += '<p>ゆかりの人物：' + p.persons.map(x => '<span class="pp" data-p="' + esc(x) + '">' + esc(x) + '</span>').join('') + '</p>';
   if (p.history) h += '<details><summary>▶ 歴史・由来（Wikipedia）</summary><p>' + esc(p.history).replace(/\n/g, '<br>') + '</p></details>';
@@ -362,9 +358,8 @@ function expandTerms(q) {
 function matchPerson(f, terms) {
   const p = f.properties;
   if ((p.persons || []).some(x => terms.includes(x))) return true;
-  if ((p.links || []).some(l => terms.includes(l))) return true;
   if ((p.people || []).some(x => terms.some(t => x === t || (t.length >= 2 && x.includes(t))))) return true;
-  const text = p.name + ' ' + p.deity + ' ' + p.history + ' ' + p.intro;
+  const text = p.name + ' ' + p.deity;
   return terms.some(t => text.includes(t));
 }
 const normN = t => (t || '').normalize('NFKC').replace(/\s+/g, '').toLowerCase();
@@ -399,20 +394,64 @@ function currentList() {
     return terms ? matchPerson(f, terms) : true;
   });
 }
+// ---- 表示範囲だけを描く（supercluster でまとめ、見えている範囲の点だけ地図の部品にする）----
+function rebuildIndex(list) {
+  shownCount = list.length;
+  index = new Supercluster({ radius: 55, maxZoom: 14, minPoints: 3 });
+  index.load(list.map(f => ({ type: 'Feature', geometry: f.geometry, properties: { f } })));
+  layer.clearLayers(); shownLayers.clear(); markerOf.clear();
+  renderView();
+}
+function pointMarker(f) {
+  const p = f.properties, [lon, lat] = f.geometry.coordinates, nq = normN($('nameQ').value);
+  const mk = L.circleMarker([lat, lon], { radius: (RADIUS[p.rank] || 3) + (nq ? 2 : 0), color: nq ? '#d32f2f' : '#fff', weight: nq ? 3 : 1,
+    fillColor: colorBy === 'era' ? eraColor(p.era) : colorOf(p.kind), fillOpacity: p.rank >= 2 ? 0.9 : 0.55 })
+    .bindPopup(() => popupHtml(p, lat, lon), { maxWidth: 360, minWidth: 250, autoPanPadding: [20, 90] })
+    .bindTooltip(esc(p.name));
+  mk.on('popupopen', ev => ensureDetail(p, lat, lon, ev.popup));
+  return mk;
+}
+function renderView() {
+  if (!index) return;
+  const b = map.getBounds().pad(0.25), z = Math.min(Math.round(map.getZoom()), 18);
+  const items = index.getClusters([b.getWest(), b.getSouth(), b.getEast(), b.getNorth()], z);
+  const keep = new Set();
+  items.forEach(it => {
+    const [lon, lat] = it.geometry.coordinates;
+    const isC = it.properties.cluster;
+    const key = isC ? 'c' + it.properties.cluster_id + ':' + z : 'p' + it.properties.f.properties.i;
+    keep.add(key);
+    if (shownLayers.has(key)) return;
+    let lyr;
+    if (isC) {
+      const n = it.properties.point_count, k = n < 10 ? '' : n < 100 ? 'm' : 'l', sz = n < 10 ? 34 : n < 100 ? 40 : 48;
+      lyr = L.marker([lat, lon], { icon: L.divIcon({ html: '<div><span>' + (it.properties.point_count_abbreviated || n) + '</span></div>', className: 'mc ' + k, iconSize: [sz, sz] }) });
+      lyr.on('click', () => map.setView([lat, lon], Math.min(index.getClusterExpansionZoom(it.properties.cluster_id), 18)));
+    } else {
+      lyr = pointMarker(it.properties.f);
+      markerOf.set(it.properties.f, lyr);
+    }
+    lyr.addTo(layer); shownLayers.set(key, lyr);
+  });
+  for (const [key, lyr] of shownLayers) {
+    if (!keep.has(key) && !(lyr.isPopupOpen && lyr.isPopupOpen())) { layer.removeLayer(lyr); shownLayers.delete(key); }
+  }
+}
+map.on('moveend', renderView);
+
+// ---- 詳細（由来など長い文章）は、タップした時に該当エリアのファイルから取得 ----
+const detailCache = {};
+function ensureDetail(p, lat, lon, popup) {
+  if (!p.hd || p._dl) return;
+  (detailCache[p.c] = detailCache[p.c] || fetch('data/detail/' + p.c + '.json').then(r => r.json()))
+    .then(d => { const x = d[p.i] || {}; p.intro = x.intro || ''; p.history = x.history || ''; p._dl = 1; popup.setContent(popupHtml(p, lat, lon)); })
+    .catch(() => { p._dl = 1; p.intro = ''; popup.setContent(popupHtml(p, lat, lon)); });
+}
+
 function draw(fit) {
   const list = currentList();
-  layer.clearLayers(); markerOf.clear(); shownCount = list.length;
-  const mks = [];
   const nq = normN($('nameQ').value);
-  list.slice().sort((a, b) => a.properties.rank - b.properties.rank).forEach(f => {
-    const p = f.properties, [lon, lat] = f.geometry.coordinates;
-    const mk = L.circleMarker([lat, lon], { radius: (RADIUS[p.rank] || 3) + (nq ? 2 : 0), color: nq ? '#d32f2f' : '#fff', weight: nq ? 3 : 1, fillColor: colorBy === 'era' ? eraColor(p.era) : colorOf(p.kind), fillOpacity: p.rank >= 2 ? 0.9 : 0.55 })
-      .bindPopup(() => popupHtml(p, lat, lon), { maxWidth: 360, minWidth: 250, autoPanPadding: [20, 90] })
-    mks.push(mk);
-    markerOf.set(f, mk);
-    if (list.length < 2500 || p.rank >= 2) mk.bindTooltip(esc(p.name));
-  });
-  layer.addLayers(mks);
+  rebuildIndex(list);
   lastList = list;
   listSorted = list.slice().sort(near ? (a, b) => a.properties._d - b.properties._d : (a, b) => b.properties.rank - a.properties.rank || a.properties.name.localeCompare(b.properties.name, 'ja'));
   $('fCount').textContent = list.length + ' 社';
@@ -483,7 +522,7 @@ function jumpTo(f) {
   const [lon, lat] = f.geometry.coordinates;
   map.setView([lat, lon], Math.max(map.getZoom(), 16));
   const mk = markerOf.get(f);
-  if (mk) setTimeout(() => layer.zoomToShowLayer(mk, () => mk.openPopup()), 300);
+  setTimeout(() => { const m = markerOf.get(f); if (m) m.openPopup(); }, 500);
 }
 function showTab(t) { const b = document.querySelector('#tabs button[data-t="' + t + '"]'); if (b) b.click(); }
 function nearMsg(t, err) { $('nearStat').innerHTML = '<div class="near-msg' + (err ? ' err' : '') + '">' + t + '</div>'; }

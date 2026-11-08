@@ -270,9 +270,33 @@ def main():
     for f in features:
         k = str(f["properties"]["rank"])
         summary["rank_dist"][k] = summary["rank_dist"].get(k, 0) + 1
+    # 軽量化: 長い文章(intro/history)は地図用データから外し、緯度経度 0.25° ごとの詳細ファイルに分ける。
+    # 地図は起動時に軽い方だけ読み込み、神社をタップした時に該当エリアの詳細を取りに行く。
     os.makedirs(OUT_DIR, exist_ok=True)
+    detail_dir = os.path.join(OUT_DIR, "detail")
+    if os.path.isdir(detail_dir):
+        for fn in os.listdir(detail_dir):
+            os.remove(os.path.join(detail_dir, fn))
+    os.makedirs(detail_dir, exist_ok=True)
+    cells = {}
+    for i, f in enumerate(features):
+        pr = f["properties"]
+        lon, lat = f["geometry"]["coordinates"]
+        cell = "%d_%d" % (math.floor(lat / 0.25), math.floor(lon / 0.25))
+        pr["i"] = i
+        pr["c"] = cell
+        intro, hist = pr.pop("intro", ""), pr.pop("history", "")
+        pr.pop("links", None)
+        if intro or hist:
+            pr["hd"] = 1
+            cells.setdefault(cell, {})[str(i)] = {"intro": intro, "history": hist}
+    for cell, d in cells.items():
+        with open(os.path.join(detail_dir, cell + ".json"), "w", encoding="utf-8") as fh:
+            json.dump(d, fh, ensure_ascii=False, separators=(",", ":"))
+    summary["detail_files"] = len(cells)
     with open(os.path.join(OUT_DIR, "shrines.geojson"), "w", encoding="utf-8") as fh:
-        json.dump({"type": "FeatureCollection", "features": features}, fh, ensure_ascii=False)
+        json.dump({"type": "FeatureCollection", "features": features}, fh, ensure_ascii=False, separators=(",", ":"))
+    print("lite geojson bytes:", os.path.getsize(os.path.join(OUT_DIR, "shrines.geojson")))
     with open(os.path.join(OUT_DIR, "persons.json"), "w", encoding="utf-8") as fh:
         json.dump(PERSONS, fh, ensure_ascii=False)
     with open(os.path.join(OUT_DIR, "summary.json"), "w", encoding="utf-8") as fh:
