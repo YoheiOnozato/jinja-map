@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>関東の神社マップ ― 社格・系統・由来</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
 <style>
   :root { --red: #b3261e; --paper: #f5f0e6; --ink: #2b2118; }
   html, body, #map { margin: 0; height: 100%; font-family: -apple-system, "Hiragino Mincho ProN", "Hiragino Sans", serif; color: var(--ink); }
@@ -81,6 +82,21 @@
   .li .lm { font-size: 12px; color: #6b5d4a; display: block; }
   .li .go { color: var(--red); font-size: 12px; white-space: nowrap; }
   .li mark { background: #ffe58a; padding: 0; }
+  .mc div { width: 100%; height: 100%; border-radius: 50%; background: rgba(179,38,30,.88); color: #fff; border: 3px solid #fff; box-shadow: 0 1px 6px #0006; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 13px; box-sizing: border-box; }
+  .mc.m div { background: rgba(160,90,20,.9); } .mc.l div { background: rgba(90,45,130,.9); font-size: 14px; }
+  #locBtn { position: absolute; z-index: 1000; right: 10px; top: 112px; width: 46px; height: 46px; border-radius: 50%; border: 1px solid #d8c9a8; background: var(--paper); box-shadow: 0 2px 8px #0004; font-size: 22px; }
+  #loading { position: fixed; z-index: 3000; inset: 0; background: #f5f0e6f2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; font-size: 15px; text-align: center; padding: 20px; }
+  #loading.done { display: none; }
+  .sp { width: 44px; height: 44px; border-radius: 50%; border: 5px solid #e3d6b8; border-top-color: var(--red); animation: spin 0.9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stick { position: sticky; bottom: -16px; margin: 10px -14px -16px; padding: 10px 14px 14px; background: linear-gradient(#f5f0e600, var(--paper) 22%); display: flex; gap: 8px; align-items: center; z-index: 5; }
+  .stick .cnt { flex: 1; font-weight: bold; font-size: 14px; } .stick .btn { margin: 0; width: auto; padding: 12px 18px; }
+  .stick .ghost { background: #fff; color: var(--red); border: 1px solid var(--red); }
+  .kind { padding: 10px 0; }
+  .btn.ghost { background: #fff; color: var(--red); border: 1px solid var(--red); }
+  .near-msg { background: #fff; border: 1px solid #d8c9a8; border-radius: 8px; padding: 8px 10px; margin: 8px 0; font-size: 13px; }
+  .near-msg.err { border-color: var(--red); }
   .sug { display: block; margin-top: 8px; padding: 9px; text-align: center; border-radius: 8px; background: #fff; border: 1px solid #c9b88f; color: #6b4a1a; font-weight: bold; }
   .pp { color: #1a56b0; text-decoration: underline; cursor: pointer; margin-right: 8px; }
 </style>
@@ -96,6 +112,8 @@
 </div>
 <div id="legend"><h4 id="lgHead"><span>凡例</span><span id="lgArrow">▼</span></h4><div id="lgBody"></div></div>
 <datalist id="plist"></datalist>
+<div id="loading"><div class="sp"></div><div id="loadMsg">神社データを読み込んでいます…</div></div>
+<button id="locBtn" title="現在地の近くの神社">📍</button>
 <div id="map"></div>
 <div id="listview"></div>
 
@@ -108,6 +126,7 @@
   <div id="tabs">
     <button data-t="filter" class="on">絞り込み</button>
     <button data-t="name">名前で探す</button>
+    <button data-t="near">近くの神社</button>
     <button data-t="person">人物で探す</button>
     <button data-t="era">時代の流れ</button>
     <button data-t="learn">神社を知る</button>
@@ -115,21 +134,23 @@
   </div>
   <div id="body">
     <div class="pane on" id="p-filter">
-      <div class="small">都県</div>
-      <select id="prefSel"><option value="">関東すべて</option><option>茨城県</option><option>栃木県</option><option>群馬県</option><option>埼玉県</option><option>千葉県</option><option>東京都</option><option>神奈川県</option></select>
-      <div class="small">社格</div>
-      <select id="rankSel">
-        <option value="1">すべて</option>
-        <option value="2">社格・記事のある神社</option>
-        <option value="3">式内社・県社など以上</option>
-        <option value="5">名神大社・官幣大社以上</option>
-        <option value="6">一宮・二十二社のみ</option>
-      </select>
+      <div class="row2">
+        <div><div class="small">都県</div>
+          <select id="prefSel"><option value="">関東すべて</option><option>茨城県</option><option>栃木県</option><option>群馬県</option><option>埼玉県</option><option>千葉県</option><option>東京都</option><option>神奈川県</option></select></div>
+        <div><div class="small">社格</div>
+          <select id="rankSel">
+            <option value="1">すべて</option>
+            <option value="2">社格・記事あり</option>
+            <option value="3">式内社・県社以上</option>
+            <option value="5">名神大社・官幣大社以上</option>
+            <option value="6">一宮・二十二社のみ</option>
+          </select></div>
+      </div>
       <div class="small">点の色</div>
       <select id="colorSel"><option value="kind">系統で色分け</option><option value="era">創建の時代で色分け</option></select>
       <div class="small">系統（タップで絞り込み・件数は社数）</div>
       <div id="kinds"></div>
-      <button class="btn" id="showMap1">地図を見る</button>
+      <div class="stick"><span class="cnt" id="fCount"></span><button class="btn ghost" id="resetBtn">リセット</button><button class="btn" id="showMap1">地図を見る</button></div>
     </div>
     <div class="pane" id="p-name">
       <p>神社の名前の一部を入れると、一致する神社だけを地図（またはリスト）に表示します。都県・社格・系統などの絞り込みも同時に効きます。</p>
@@ -138,6 +159,16 @@
       <div id="nameList"></div>
       <button class="btn" id="nameMap">地図で見る</button>
       <button class="btn" id="nameListBtn" style="background:#fff;color:var(--red);border:1px solid var(--red)">リストで見る</button>
+    </div>
+    <div class="pane" id="p-near">
+      <p>いまいる場所（または地図の中心）から近い神社を、距離の近い順に表示します。位置情報は端末の中だけで使い、サーバーには送りません。</p>
+      <div class="small">探す範囲</div>
+      <select id="nearKm"><option value="1">1km 以内</option><option value="3" selected>3km 以内</option><option value="5">5km 以内</option><option value="10">10km 以内</option><option value="20">20km 以内</option></select>
+      <button class="btn" id="nearGps">📍 現在地から探す</button>
+      <button class="btn ghost" id="nearCenter">地図の中心の近くを探す</button>
+      <div id="nearStat"></div>
+      <button class="btn ghost" id="nearOff" style="display:none">近くの神社の絞り込みを解除</button>
+      <button class="btn" id="nearList" style="display:none">距離順のリストで見る</button>
     </div>
     <div class="pane" id="p-person">
       <p>歴史上の人物の名前を入れると、その人物ゆかりの神社を地図に表示します。神社の Wikipedia 記事が、その人物の記事にリンクしている場合などが対象です。</p>
@@ -174,6 +205,7 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script>
 const map = L.map('map', { preferCanvas: true }).setView([36.0, 139.6], 8);
 L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
@@ -186,7 +218,14 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp
 const RADIUS = {1: 3, 2: 5, 3: 6, 4: 8, 5: 11, 6: 14};
 const PALETTE = ['#e6194b','#3cb44b','#4363d8','#f58231','#911eb4','#46a3a3','#c1a300','#8c564b','#e377c2','#17becf','#7f7f7f','#bcbd22','#1f77b4','#d62728','#2ca02c','#9467bd','#ff7f0e','#555'];
 const kindColor = {};
-let all = [], persons = {}, activeKinds = new Set(), activeEra = '', colorBy = 'kind', layer = L.layerGroup().addTo(map);
+let shownCount = 0;
+let all = [], persons = {}, activeKinds = new Set(), activeEra = '', colorBy = 'kind', layer = L.markerClusterGroup({
+  chunkedLoading: true, showCoverageOnHover: false, spiderfyOnMaxZoom: true, disableClusteringAtZoom: 15,
+  maxClusterRadius: () => shownCount > 150 ? 50 : 1,
+  iconCreateFunction: c => { const n = c.getChildCount(), k = n < 10 ? 'm0' : n < 100 ? 'm' : 'l', z = n < 10 ? 34 : n < 100 ? 40 : 48;
+    return L.divIcon({ html: '<div><span>' + n + '</span></div>', className: 'mc ' + (k === 'm0' ? '' : k), iconSize: [z, z] }); }
+}).addTo(map);
+
 const ERA_COLOR = {'旧石器':'#3b2a6b','縄文':'#4b2e83','弥生':'#5e35b1','古墳':'#6a3d9a','飛鳥':'#3f51b5','奈良':'#1976d2','平安':'#00897b','鎌倉':'#43a047','室町':'#9e9d24','安土桃山':'#f9a825','江戸':'#ef6c00','明治':'#d84315','大正':'#ad1457','昭和':'#6d4c41','平成':'#546e7a','令和':'#90a4ae'};
 const ERA_INFO = [['旧石器','約1.6万年前より前',''],['縄文','〜紀元前4世紀頃',''],['弥生','紀元前4世紀頃〜3世紀中頃',''],['古墳','3世紀中頃〜592年','山や岩を神として祀る信仰が国づくりと結びつく時代'],['飛鳥','592〜710年','仏教が入り、神を祀る制度が整い始める'],['奈良','710〜794年','『古事記』『日本書紀』がまとめられ、神仏習合が始まる'],['平安','794〜1185年','『延喜式』神名帳（927年）ができ、式内社・一宮の序列が整う'],['鎌倉','1185〜1333年','武士が八幡神などを厚く信仰し、神社が各地に勧請される'],['室町','1333〜1573年（南北朝・戦国を含む）','戦国大名や地域の領主が神社を保護する'],['安土桃山','1573〜1603年',''],['江戸','1603〜1868年','徳川家康を祀る東照宮が各地に建ち、参詣が広がる'],['明治','1868〜1912年','神仏分離（1868年）と近代社格制度（1871年）、神社の合祀'],['大正','1912〜1926年','明治神宮（1920年）が創建される'],['昭和','1926〜1989年','1946年に社格制度が廃止され、神社本庁ができる'],['平成','1989〜2019年',''],['令和','2019年〜','']];
 
@@ -244,6 +283,7 @@ function popupHtml(p, lat, lon) {
   h += row('創建時期', founded || NA);
   h += row('祭神', p.deity ? esc(p.deity) + (vf('deity') ? cf('確認済み', 'vf') : cf('記載', 'ok')) : NA);
   if (p.address) h += row('所在地', esc(p.address));
+  if (p._d != null && near) h += row('距離', fmtD(p._d) + '（' + esc(near.label) + 'から）');
   const osmUrl = p.osm_id ? 'https://www.openstreetmap.org/' + p.osm_id : 'https://www.openstreetmap.org/?mlat=' + lat + '&mlon=' + lon + '#map=18/' + lat + '/' + lon;
   h += row('Wikipedia', p.wikipedia ? '<a target="_blank" rel="noopener" href="https://ja.wikipedia.org/wiki/' + encodeURIComponent(p.wikipedia) + '">' + esc(p.wikipedia) + '</a>' : NA);
   h += row('OpenStreetMap', '<a target="_blank" rel="noopener" href="' + osmUrl + '">地図で見る</a>');
@@ -330,12 +370,19 @@ function hl(name, q) {
   if (i < 0 || normN(name).length !== name.length) return esc(name);
   return esc(name.slice(0, i)) + '<mark>' + esc(name.slice(i, i + q.length)) + '</mark>' + esc(name.slice(i + q.length));
 }
+let near = null;
+const youLayer = L.layerGroup().addTo(map);
+const hav = (a, b, c, d) => { const R = 6371000, r = Math.PI / 180, dp = (c - a) * r, dl = (d - b) * r;
+  const x = Math.sin(dp / 2) ** 2 + Math.cos(a * r) * Math.cos(c * r) * Math.sin(dl / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)); };
+const fmtD = d => d < 1000 ? Math.max(10, Math.round(d / 10) * 10) + 'm' : (d / 1000).toFixed(1) + 'km';
 function currentList() {
   const q = $('q').value.trim(), nameQ = normN($('nameQ').value);
   const minRank = +$('rankSel').value, prefQ = $('prefSel').value;
   const terms = q ? expandTerms(q) : null;
+  const maxD = near ? +$('nearKm').value * 1000 : 0;
   return all.filter(f => {
     const p = f.properties;
+    if (near) { p._d = hav(near.lat, near.lon, f.geometry.coordinates[1], f.geometry.coordinates[0]); if (p._d > maxD) return false; } else p._d = undefined;
     if (prefQ && p.pref !== prefQ) return false;
     if (p.rank < minRank) return false;
     if (activeKinds.size && !activeKinds.has(p.kind)) return false;
@@ -346,27 +393,34 @@ function currentList() {
 }
 function draw(fit) {
   const list = currentList();
-  layer.clearLayers(); markerOf.clear();
+  layer.clearLayers(); markerOf.clear(); shownCount = list.length;
+  const mks = [];
   const nq = normN($('nameQ').value);
   list.slice().sort((a, b) => a.properties.rank - b.properties.rank).forEach(f => {
     const p = f.properties, [lon, lat] = f.geometry.coordinates;
     const mk = L.circleMarker([lat, lon], { radius: (RADIUS[p.rank] || 3) + (nq ? 2 : 0), color: nq ? '#d32f2f' : '#fff', weight: nq ? 3 : 1, fillColor: colorBy === 'era' ? eraColor(p.era) : colorOf(p.kind), fillOpacity: p.rank >= 2 ? 0.9 : 0.55 })
       .bindPopup(() => popupHtml(p, lat, lon), { maxWidth: 360, minWidth: 250, autoPanPadding: [20, 90] })
-      .addTo(layer);
+    mks.push(mk);
     markerOf.set(f, mk);
     if (list.length < 2500 || p.rank >= 2) mk.bindTooltip(esc(p.name));
   });
+  layer.addLayers(mks);
   lastList = list;
-  listSorted = list.slice().sort((a, b) => b.properties.rank - a.properties.rank || a.properties.name.localeCompare(b.properties.name, 'ja'));
+  listSorted = list.slice().sort(near ? (a, b) => a.properties._d - b.properties._d : (a, b) => b.properties.rank - a.properties.rank || a.properties.name.localeCompare(b.properties.name, 'ja'));
+  $('fCount').textContent = list.length + ' 社';
   const nraw = $('nameQ').value.trim();
   $('nameHit').textContent = nraw ? '「' + nraw + '」に一致：' + list.length + ' 社' : '';
-  $('nameList').innerHTML = nraw ? listSorted.slice(0, 8).map((f, i) => '<div class="li" data-j="' + i + '"><i style="background:' + (colorBy === 'era' ? eraColor(f.properties.era) : colorOf(f.properties.kind)) + '"></i><div class="tx"><b>' + hl(f.properties.name, nq) + '</b><span class="lm">' + esc([f.properties.pref, f.properties.kind !== 'その他' ? f.properties.kind : '', f.properties.rank_label].filter(Boolean).join(' ・ ')) + '</span></div><span class="go">地図へ ›</span></div>').join('') + (list.length > 8 ? '<div class="small" style="margin-bottom:6px">ほか ' + (list.length - 8) + ' 社（「リストで見る」で全件）</div>' : '') : '';
+  $('nameList').innerHTML = nraw ? listSorted.slice(0, 8).map((f, i) => '<div class="li" data-j="' + i + '"><i style="background:' + (colorBy === 'era' ? eraColor(f.properties.era) : colorOf(f.properties.kind)) + '"></i><div class="tx"><b>' + hl(f.properties.name, nq) + '</b><span class="lm">' + esc([f.properties.pref, f.properties.kind !== 'その他' ? f.properties.kind : '', f.properties.rank_label].filter(Boolean).join(' ・ ')) + '</span></div><span class="go">' + (f.properties._d != null ? fmtD(f.properties._d) + ' ' : '') + '地図へ ›</span></div>').join('') + (list.length > 8 ? '<div class="small" style="margin-bottom:6px">ほか ' + (list.length - 8) + ' 社（「リストで見る」で全件）</div>' : '') : '';
   listLimit = 100;
   if (viewMode === 'list') renderList();
   const qv = $('q').value.trim();
-  $('hint').textContent = (qv && !list.length) ? '「' + qv + '」に関わる神社は見つかりませんでした（神社の記事に名前が出る人物が対象です）' : list.length + ' / ' + all.length + ' 社を表示';
+  $('hint').textContent = (qv && !list.length) ? '「' + qv + '」に関わる神社は見つかりませんでした（神社の記事に名前が出る人物が対象です）' : (near ? near.label + 'から' + $('nearKm').value + 'km以内：' + list.length + ' 社' + (list.length ? '（近い順）' : '。範囲を広げてください') : list.length + ' / ' + all.length + ' 社を表示');
   $('sub').textContent = '関東の神社 ' + all.length + ' 社';
-  if (fit && list.length && viewMode === 'map') map.fitBounds(L.latLngBounds(list.map(f => [f.geometry.coordinates[1], f.geometry.coordinates[0]])), { padding: [40, 120], maxZoom: 13 });
+  if (fit && list.length && viewMode === 'map') {
+    const pts = list.map(f => [f.geometry.coordinates[1], f.geometry.coordinates[0]]);
+    if (near) pts.push([near.lat, near.lon]);
+    map.fitBounds(L.latLngBounds(pts), { padding: [40, 120], maxZoom: near ? 16 : 13 });
+  }
 }
 function searchPerson(name) {
   $('q').value = name; $('personQ').value = name;
@@ -392,6 +446,7 @@ function filterSummary() {
   if (activeKinds.size) a.push('系統:' + [...activeKinds].join('・'));
   if (activeEra) a.push('時代:' + activeEra);
   if ($('nameQ').value.trim()) a.push('名前「' + $('nameQ').value.trim() + '」');
+  if (near) a.push(near.label + 'から' + $('nearKm').value + 'km以内（近い順）');
   if ($('q').value.trim()) a.push('人物「' + $('q').value.trim() + '」');
   return a.length ? a.join(' ／ ') : '絞り込みなし（関東すべて）';
 }
@@ -403,7 +458,7 @@ function renderList() {
   h += shown.map((f, i) => {
     const p = f.properties;
     const meta = [p.pref, p.kind !== 'その他' ? p.kind : '', p.rank_label, p.era ? p.era + '時代' : ''].filter(Boolean).join(' ・ ');
-    return '<div class="li" data-i="' + i + '"><i style="background:' + (colorBy === 'era' ? eraColor(p.era) : colorOf(p.kind)) + '"></i><div class="tx"><b>' + hl(p.name || '（名称不明）', nq) + '</b><span class="lm">' + esc(meta || '情報なし') + '</span></div><span class="go">地図へ ›</span></div>';
+    return '<div class="li" data-i="' + i + '"><i style="background:' + (colorBy === 'era' ? eraColor(p.era) : colorOf(p.kind)) + '"></i><div class="tx"><b>' + hl(p.name || '（名称不明）', nq) + '</b><span class="lm">' + esc(meta || '情報なし') + '</span></div><span class="go">' + (p._d != null ? fmtD(p._d) + ' ' : '') + '地図へ ›</span></div>';
   }).join('');
   if (listSorted.length > listLimit) h += '<button class="btn" id="moreBtn">さらに表示（残り ' + (listSorted.length - listLimit) + ' 社）</button>';
   $('listview').innerHTML = h;
@@ -420,8 +475,45 @@ function jumpTo(f) {
   const [lon, lat] = f.geometry.coordinates;
   map.setView([lat, lon], Math.max(map.getZoom(), 16));
   const mk = markerOf.get(f);
-  if (mk) setTimeout(() => mk.openPopup(), 300);
+  if (mk) setTimeout(() => layer.zoomToShowLayer(mk, () => mk.openPopup()), 300);
 }
+function showTab(t) { const b = document.querySelector('#tabs button[data-t="' + t + '"]'); if (b) b.click(); }
+function nearMsg(t, err) { $('nearStat').innerHTML = '<div class="near-msg' + (err ? ' err' : '') + '">' + t + '</div>'; }
+function setNear(lat, lon, label, acc) {
+  near = { lat, lon, label };
+  youLayer.clearLayers();
+  L.circleMarker([lat, lon], { radius: 9, color: '#fff', weight: 3, fillColor: '#1a73e8', fillOpacity: 1 }).addTo(youLayer).bindTooltip(label);
+  if (acc && acc < 3000) L.circle([lat, lon], { radius: acc, color: '#1a73e8', weight: 1, fillOpacity: 0.08, interactive: false }).addTo(youLayer);
+  $('nearOff').style.display = $('nearList').style.display = 'block';
+  setView('map'); draw(true);
+  nearMsg(label + 'から ' + $('nearKm').value + 'km 以内：<b>' + lastList.length + ' 社</b>' + (lastList.length ? '（近い順）' : '。範囲を広げてみてください'));
+  setSheet(false);
+}
+function clearNear() { near = null; youLayer.clearLayers(); $('nearOff').style.display = $('nearList').style.display = 'none'; nearMsg('絞り込みを解除しました。'); draw(true); }
+function locate() {
+  if (!navigator.geolocation) { nearMsg('この端末・ブラウザでは位置情報を使えません。下の「地図の中心の近くを探す」か、「絞り込み」タブで都県を選んでください。', true); setSheet(true); showTab('near'); return; }
+  nearMsg('現在地を取得中…（確認が出たら「許可」を押してください）');
+  navigator.geolocation.getCurrentPosition(
+    pos => setNear(pos.coords.latitude, pos.coords.longitude, '現在地', pos.coords.accuracy),
+    err => {
+      const why = err.code === 1 ? '位置情報の利用が許可されていません。端末やブラウザの設定で許可すると使えます。' : err.code === 3 ? '位置情報の取得に時間がかかりすぎました。電波の良い場所でもう一度お試しください。' : '現在地を取得できませんでした。';
+      nearMsg(why + '<br>代わりに「地図の中心の近くを探す」で、地図を動かして探せます。', true);
+      setSheet(true); showTab('near');
+    }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
+}
+$('locBtn').onclick = locate;
+$('nearGps').onclick = locate;
+$('nearCenter').onclick = () => { const c = map.getCenter(); setNear(c.lat, c.lng, '地図の中心'); };
+$('nearOff').onclick = clearNear;
+$('nearList').onclick = () => { setView('list'); setSheet(false); };
+$('nearKm').onchange = () => { if (near) { draw(true); nearMsg(near.label + 'から ' + $('nearKm').value + 'km 以内：<b>' + lastList.length + ' 社</b>'); } };
+$('resetBtn').onclick = () => {
+  $('prefSel').value = ''; $('rankSel').value = '1'; $('nameQ').value = ''; $('q').value = ''; $('personQ').value = '';
+  activeKinds.clear(); document.querySelectorAll('#kinds input').forEach(c => c.checked = false);
+  activeEra = ''; document.querySelectorAll('.eraRow').forEach(x => x.classList.remove('on'));
+  near = null; youLayer.clearLayers(); $('nearOff').style.display = $('nearList').style.display = 'none';
+  draw(true);
+};
 $('viewBtn').onclick = () => setView(viewMode === 'list' ? 'map' : 'list');
 $('listview').addEventListener('click', ev => {
   if (ev.target.id === 'moreBtn') { listLimit += 100; renderList(); return; }
@@ -461,8 +553,12 @@ Promise.all([
   buildEraList(sum);
   drawLegend();
   if (sum) $('stats').textContent = '収録 ' + sum.total + ' 社のうち、主祭神が分かるもの ' + sum.with_deity + ' 社、由来の文章があるもの ' + sum.with_history + ' 社、Wikipedia 記事があるもの ' + sum.wiki_articles + ' 社。更新日 ' + (sum.generated || '');
-  draw(false);
-}).catch(() => { $('hint').textContent = 'データを読み込めませんでした'; });
+  $('loadMsg').textContent = '地図に ' + all.length + ' 社を描画しています…';
+  setTimeout(() => { draw(false); $('loading').classList.add('done'); }, 40);
+}).catch(() => {
+  $('hint').textContent = 'データを読み込めませんでした';
+  $('loading').innerHTML = '<div style="font-size:34px">⚠️</div><div>神社データを読み込めませんでした。<br>通信状況を確認して、もう一度お試しください。</div><button class="btn" style="width:auto;padding:12px 28px" onclick="location.reload()">再読み込み</button>';
+});
 
 function buildEraList(sum) {
   const cnt = {};
