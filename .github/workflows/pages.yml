@@ -24,11 +24,13 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - name: 群馬県の神社データを取得
+      - name: OpenStreetMap から神社を取得
         run: python3 scripts/fetch_osm.py
+      - name: Wikipedia から神社の記事を取得
+        run: python3 scripts/fetch_wiki.py
+      - name: データを統合
+        run: python3 scripts/build_site_data.py
       - uses: actions/configure-pages@v5
-        with:
-          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site

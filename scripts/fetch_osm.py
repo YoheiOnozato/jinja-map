@@ -2,8 +2,8 @@
 
 標準ライブラリのみ。GitHub Actions 上で実行する想定。
 出力:
-  site/data/shrines.geojson  地図ページが読むデータ
-  site/data/summary.json     件数・情報の充実度の集計
+  build/osm.geojson        OSM の神社（中間データ）
+  build/osm_summary.json   件数の集計
 """
 import json
 import os
@@ -27,7 +27,7 @@ area["ISO3166-2"="JP-10"]->.a;
 );
 out center tags;
 """
-OUT_DIR = os.path.join(os.path.dirname(__file__), "..", "site", "data")
+OUT_DIR = os.path.join(os.path.dirname(__file__), "..", "build")
 
 
 def fetch():
@@ -87,9 +87,9 @@ def main():
         "osm_timestamp": data.get("osm3s", {}).get("timestamp_osm_base", ""),
     }
     os.makedirs(OUT_DIR, exist_ok=True)
-    with open(os.path.join(OUT_DIR, "shrines.geojson"), "w", encoding="utf-8") as fh:
+    with open(os.path.join(OUT_DIR, "osm.geojson"), "w", encoding="utf-8") as fh:
         json.dump({"type": "FeatureCollection", "features": features}, fh, ensure_ascii=False)
-    with open(os.path.join(OUT_DIR, "summary.json"), "w", encoding="utf-8") as fh:
+    with open(os.path.join(OUT_DIR, "osm_summary.json"), "w", encoding="utf-8") as fh:
         json.dump(summary, fh, ensure_ascii=False, indent=2)
     print(json.dumps(summary, ensure_ascii=False, indent=2))
 
