@@ -53,7 +53,7 @@ def find_infobox(wikitext):
                 i += 1
         body = wikitext[start + 2:i - 2]
         name = body.split("|", 1)[0].strip()
-        if ("神社" in name or "Infobox" in name or "infobox" in name or name.startswith("基礎情報")) and "|" in body:
+        if ("神社" in name or "Infobox" in name or "infobox" in name or name.startswith("基礎情報") or "概要表" in name) and "|" in body:
             return name, _params(body.split("|", 1)[1])
     return "", {}
 
