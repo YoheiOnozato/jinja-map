@@ -30,14 +30,16 @@ def dec(bs):
 
 files = {}
 for l in links:
-    q = urllib.parse.quote(urllib.parse.unquote_to_bytes(l), safe="/:")
-    u = urllib.parse.urljoin(BASE, q)
-    name = dec(urllib.parse.unquote_to_bytes(l)).rsplit("/", 1)[-1]
-    try:
-        files[name] = get(u)
-        print("got", name, len(files[name]))
-    except Exception as e:  # noqa: BLE001
-        print("fail", repr(l), u, e)
+    text = dec(urllib.parse.unquote_to_bytes(l))
+    name = text.rsplit("/", 1)[-1]
+    for q in (urllib.parse.quote(text.encode("utf-8"), safe="/:"), urllib.parse.quote(text.encode("cp932"), safe="/:")):
+        u = urllib.parse.urljoin(BASE, q)
+        try:
+            files[name] = get(u)
+            print("got", name, len(files[name]), u)
+            break
+        except Exception as e:  # noqa: BLE001
+            print("fail", name, u, e)
 shp = next((v for k, v in files.items() if k == "遺跡.shp"), None)
 dbf = next((v for k, v in files.items() if k == "遺跡.dbf"), None)
 if shp:
