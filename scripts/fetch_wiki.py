@@ -223,15 +223,18 @@ def digest_castle(title, a):
     return {
         "title": title, "lat": a["lat"], "lon": a["lon"], "wikidata": a["wikidata"],
         "template": tpl, "info_keys": sorted(info.keys()),
-        "name": find(("名称", "name"), ("名称",)) or title,
-        "tenshu": find(("天守構造", "天守"), ("天守",)),
-        "structure": find(("城郭構造", "structure"), ("城郭構造", "構造")),
-        "built": find(("築城年", "築年", "built"), ("築城年", "築年")),
-        "abolished": find(("廃城年",), ("廃城",)),
-        "lord": find(("主な城主",), ("城主",)),
-        "remains": find(("遺構",), ("遺構",)),
-        "designation": find(("指定文化財", "designation1"), ("指定", "文化財")),
-        "address": find(("所在地", "location"), ("所在地",)),
+        "name": find(("name", "名称"), ("名称",)) or title,
+        # 「日本の城郭概要表」の項目名: tower_struct=天守構造, struct=城郭構造, build_y=築年, reject_y=廃城年,
+        # rulers=主な城主, remains=遺構, cultural asset=文化財, rebuilding things=復元建造物, location=所在地
+        "tenshu": find(("tower_struct", "天守構造", "天守"), ("天守",)),
+        "structure": find(("struct", "城郭構造"), ("城郭構造",)),
+        "built": find(("build_y", "築城年", "築年"), ("築城年", "築年")),
+        "abolished": find(("reject_y", "廃城年"), ("廃城",)),
+        "lord": find(("rulers", "主な城主"), ("城主",)),
+        "remains": find(("remains", "遺構"), ("遺構",)),
+        "rebuilt": find(("rebuilding things", "復元建造物"), ("復元",)),
+        "designation": find(("cultural asset", "指定文化財"), ("指定", "文化財")),
+        "address": find(("location", "所在地"), ("所在地",)),
         "intro": intro[:400], "history": history.strip()[:1500],
     }
 

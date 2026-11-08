@@ -310,9 +310,11 @@ def castle_norm(name):
 def castle_kind(name, w, op):
     title = w.get("title", "")
     ten = w.get("tenshu", "")
-    if title in GENZON_TENSHU or re.search(r"現存", ten):
+    if title in GENZON_TENSHU or (re.search(r"現存", ten) and not re.search(r"非現存|現存せず|現存しな|焼失|失われ|消失", ten)):
         return "現存天守"
-    body = " ".join([w.get("remains", ""), w.get("intro", ""), w.get("history", "")[:700]])
+    body = " ".join([w.get("remains", ""), w.get("rebuilt", ""), w.get("intro", ""), w.get("history", "")[:700]])
+    if re.search(r"(?:大|小)?天守(?!台)", w.get("rebuilt", "")):
+        return "復元・再建天守"
     if ten and RE_TEN_REBUILT.search(ten):
         return "復元・再建天守"
     if not (ten and RE_TEN_NONE.search(ten)) and RE_KEEP_REBUILT.search(body) and not RE_KEEP_NONE.search(body):
@@ -368,7 +370,7 @@ def build_castle(osm_c, wiki_c):
                 "kind": kind, "founded": built, "founded_year": year, "era": era,
                 "era_note": "" if w.get("built") else "推定",
                 "address": w.get("address", ""), "website": op.get("website", ""),
-                "intro": intro[:300], "history": history[:900], "size": w.get("remains", ""),
+                "intro": intro[:300], "history": history[:900], "size": w.get("remains", "") or w.get("rebuilt", ""),
                 "persons": persons, "people": [], "wikipedia": w.get("title", ""),
                 "wikidata": w.get("wikidata", "") or op.get("wikidata", ""),
             },
