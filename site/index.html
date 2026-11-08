@@ -102,7 +102,7 @@
   .lyr.on { background: var(--red); border-color: var(--red); color: #fff; font-weight: bold; }
   .lyr em { font-style: normal; font-size: 11px; opacity: .85; margin-left: 4px; }
   .tri i { display: block; clip-path: polygon(50% 0, 100% 100%, 0 100%); box-shadow: none; }
-  .kf i { display: block; border: 2px solid #fff; box-shadow: 0 0 0 1px #0004; box-sizing: border-box; }
+  .kf i { display: block; border: 2px solid #fff; box-shadow: 0 0 0 1.5px #000a; box-sizing: border-box; }
   .sug { display: block; margin-top: 8px; padding: 9px; text-align: center; border-radius: 8px; background: #fff; border: 1px solid #c9b88f; color: #6b4a1a; font-weight: bold; }
   .pp { color: #1a56b0; text-decoration: underline; cursor: pointer; margin-right: 8px; }
 </style>
@@ -457,9 +457,9 @@ function pointMarker(f) {
   const col = colorBy === 'era' ? eraColor(p.era) : colorOf(p.kind);
   let mk;
   if (p.t === 'k') {
-    const sz = 9 + (p.rank >= 5 ? 7 : p.rank >= 3 ? 4 : p.rank >= 2 ? 2 : 0) + (nq ? 3 : 0);
+    const sz = 13 + (p.rank >= 5 ? 6 : p.rank >= 3 ? 3 : 0) + (nq ? 3 : 0);
     mk = L.marker([lat, lon], { icon: L.divIcon({ className: 'kf', iconSize: [sz, sz],
-      html: '<i style="width:' + sz + 'px;height:' + sz + 'px;background:' + col + ';opacity:' + (p.rank >= 2 ? 0.95 : 0.65) + (nq ? ';border-color:#d32f2f' : '') + '"></i>' }) });
+      html: '<i style="width:' + sz + 'px;height:' + sz + 'px;background:' + (isUnk(p.kind) ? '#6d6d6d' : col) + ';opacity:0.95' + (nq ? ';border-color:#d32f2f' : '') + '"></i>' }) });
   } else if (p.t === 'c') {
     const sz = 12 + (p.rank >= 5 ? 6 : p.rank >= 3 ? 3 : 0) + (p.kind === '現存天守' ? 4 : 0) + (nq ? 4 : 0);
     mk = L.marker([lat, lon], { icon: L.divIcon({ className: 'tri', iconSize: [sz, sz],
