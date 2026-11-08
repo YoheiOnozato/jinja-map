@@ -203,6 +203,31 @@ def main():
         features.append(make(w["name"], w["lon"], w["lat"], w, None))
         added += 1
 
+    # 確認済みの修正（data/overrides.json）を重ねる。毎週の自動生成でも消えない。
+    ov_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "overrides.json")
+    overrides = {}
+    if os.path.exists(ov_path):
+        with open(ov_path, encoding="utf-8") as fh:
+            overrides = {k: v for k, v in json.load(fh).items() if not k.startswith("_")}
+    OV_FIELDS = ("name", "kind", "rank_label", "founded", "era", "deity", "address")
+    ov_applied = 0
+    for f in features:
+        pr = f["properties"]
+        key = pr.get("osm_id") or ("wikipedia:" + pr.get("wikipedia", ""))
+        ov = overrides.get(key) or (overrides.get("wikipedia:" + pr["wikipedia"]) if pr.get("wikipedia") else None)
+        if not ov:
+            continue
+        done = [k for k in OV_FIELDS if ov.get(k)]
+        for k in done:
+            pr[k] = ov[k]
+        if "rank_label" in done:
+            pr["rank_src"] = "verified"
+        if "era" in done:
+            pr["era_note"] = ""
+        pr["verified"] = done
+        ov_applied += 1
+    print("overrides applied:", ov_applied, "/", len(overrides))
+
     summary = {
         "total": len(features),
         "osm_points": len(osm),
@@ -215,6 +240,7 @@ def main():
         "era_dist": {e: sum(1 for f in features if f["properties"]["era"] == e) for e in ERA_NAMES},
         "with_history": sum(1 for f in features if f["properties"]["history"]),
         "generated": datetime.date.today().isoformat(),
+        "overrides_applied": ov_applied,
         "with_links": sum(1 for f in features if f["properties"]["links"]),
         "with_people": sum(1 for f in features if f["properties"]["people"]),
         "with_persons": sum(1 for f in features if f["properties"]["persons"]),

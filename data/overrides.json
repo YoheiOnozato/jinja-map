@@ -1,0 +1,3 @@
+{
+  "_説明": "ここに確認済みの修正を書きます。キーは神社のID（OSMなら node/123 や way/456、Wikipediaのみなら wikipedia:記事名）。使える項目は name, kind, rank_label, founded, era, deity, address。例: \"node/123456\": {\"deity\": \"誉田別命\", \"founded\": \"1185年\"}"
+}

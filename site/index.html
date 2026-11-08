@@ -56,7 +56,7 @@
   .kinfo.on { display: block; }
   .na { color: #999; font-style: italic; }
   .cf { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 8px; margin-left: 6px; vertical-align: middle; white-space: nowrap; }
-  .cf.ok { background: #dcefdc; color: #1b5e20; } .cf.est { background: #fff0c2; color: #7a5200; } .cf.chk { background: #fde0dc; color: #8c1d18; }
+  .cf.ok { background: #dcefdc; color: #1b5e20; } .cf.est { background: #fff0c2; color: #7a5200; } .cf.vf { background: #d6e8ff; color: #0b3d91; } .cf.chk { background: #fde0dc; color: #8c1d18; }
   .leaflet-popup-content-wrapper { border-radius: 14px; background: var(--paper); }
   .leaflet-popup-content { margin: 14px 16px 12px; min-width: 240px; }
   .leaflet-container a.leaflet-popup-close-button { width: 36px; height: 36px; font-size: 26px; line-height: 34px; top: 2px; right: 2px; color: #6b5d4a; }
@@ -69,6 +69,7 @@
   #legend .lg em { margin-left: auto; font-style: normal; color: #6b5d4a; }
   #legend .sec { margin-top: 5px; padding-top: 4px; border-top: 1px dotted #d8c9a8; color: #6b5d4a; }
   #legend.min #lgBody { display: none; }
+  .sug { display: block; margin-top: 8px; padding: 9px; text-align: center; border-radius: 8px; background: #fff; border: 1px solid #c9b88f; color: #6b4a1a; font-weight: bold; }
   .pp { color: #1a56b0; text-decoration: underline; cursor: pointer; margin-right: 8px; }
 </style>
 </head>
@@ -196,25 +197,28 @@ const GREY = '#9e9e9e';
 const colorOf = k => k === 'その他' ? GREY : kindColor[k] || (kindColor[k] = PALETTE[Object.keys(kindColor).length % PALETTE.length]);
 
 // ---- ポップアップ ----
+// 修正提案用 Googleフォームの URL。空のままなら「修正を提案」ボタンは出ません。
+const FORM_URL = '';
 const NA = '<span class="na">情報なし</span>';
 const cf = (t, c) => '<span class="cf ' + c + '">' + t + '</span>';
 function popupHtml(p, lat, lon) {
   const row = (k, v) => '<tr><th>' + k + '</th><td>' + v + '</td></tr>';
+  const vf = f => (p.verified || []).indexOf(f) >= 0;
   let h = '<div class="card"><h3>' + esc(p.name || '（名称不明）') + '</h3>';
   h += '<table>';
   // 社格：Wikipedia の記載ならそのまま、そうでなければ推定
-  h += row('社格', p.rank_label ? esc(p.rank_label) + (p.rank_src === 'wikipedia' ? cf('記載', 'ok') : cf('推定', 'est')) : NA);
+  h += row('社格', p.rank_label ? esc(p.rank_label) + (vf('rank_label') ? cf('確認済み', 'vf') : p.rank_src === 'wikipedia' ? cf('記載', 'ok') : cf('推定', 'est')) : NA);
   // 系統：社名と祭神の文字から機械的に判定しているので、常に推定
-  h += row('系統', (p.kind && p.kind !== 'その他') ? esc(p.kind) + cf('推定', 'est') : NA);
+  h += row('系統', (p.kind && p.kind !== 'その他') ? esc(p.kind) + (vf('kind') ? cf('確認済み', 'vf') : cf('推定', 'est')) : NA);
   // 創建時期
   let founded = '';
   if (p.founded || p.era) {
     const eraTxt = p.era ? esc(p.era) + '時代' + (p.founded_year ? '（' + p.founded_year + '年頃）' : '') : '';
     founded = (p.founded ? esc(p.founded) : '') + (p.founded && eraTxt ? '<br>' : '') + eraTxt;
-    founded += p.era_note ? cf('推定・要確認', 'chk') : (p.era ? cf('記載', 'ok') : cf('要確認', 'chk'));
+    founded += (vf('founded') || vf('era')) ? cf('確認済み', 'vf') : p.era_note ? cf('推定・要確認', 'chk') : (p.era ? cf('記載', 'ok') : cf('要確認', 'chk'));
   }
   h += row('創建時期', founded || NA);
-  h += row('祭神', p.deity ? esc(p.deity) + cf('記載', 'ok') : NA);
+  h += row('祭神', p.deity ? esc(p.deity) + (vf('deity') ? cf('確認済み', 'vf') : cf('記載', 'ok')) : NA);
   if (p.address) h += row('所在地', esc(p.address));
   const osmUrl = p.osm_id ? 'https://www.openstreetmap.org/' + p.osm_id : 'https://www.openstreetmap.org/?mlat=' + lat + '&mlon=' + lon + '#map=18/' + lat + '/' + lon;
   h += row('Wikipedia', p.wikipedia ? '<a target="_blank" rel="noopener" href="https://ja.wikipedia.org/wiki/' + encodeURIComponent(p.wikipedia) + '">' + esc(p.wikipedia) + '</a>' : NA);
@@ -233,9 +237,20 @@ function popupHtml(p, lat, lon) {
   if (p.wikidata) h += '<a target="_blank" rel="noopener" href="https://www.wikidata.org/wiki/' + esc(p.wikidata) + '">Wikidata</a>';
   h += '</div>';
   if (p.wikipedia) h += '<div class="src">出典：Wikipedia「' + esc(p.wikipedia) + '」(CC BY-SA)</div>';
-  h += '<div class="cfnote">' + cf('記載', 'ok') + 'Wikipedia の記述　' + cf('推定', 'est') + '文字から機械的に判定　' + cf('要確認', 'chk') + '伝承などを含む</div>';
+  if (FORM_URL) h += '<a class="sug" href="#" data-sug="' + esc((p.name || '') + '（ID: ' + (p.osm_id || ('wikipedia:' + (p.wikipedia || ''))) + '）') + '">✎ この神社の情報を修正提案する</a>';
+  h += '<div class="cfnote">' + cf('記載', 'ok') + 'Wikipedia の記述　' + cf('推定', 'est') + '文字から機械的に判定　' + cf('要確認', 'chk') + '伝承などを含む　' + cf('確認済み', 'vf') + '運営が確認</div>';
   return h + '</div>';
 }
+
+document.addEventListener('click', ev => {
+  const a = ev.target.closest && ev.target.closest('.sug');
+  if (!a) return;
+  ev.preventDefault();
+  const t = a.dataset.sug;
+  try { navigator.clipboard.writeText(t); } catch (e) {}
+  alert('神社名とIDをコピーしました。開いたフォームの「神社名」欄に貼り付けてください。\n\n' + t);
+  window.open(FORM_URL, '_blank', 'noopener');
+});
 
 // ---- 凡例 ----
 function drawLegend() {
