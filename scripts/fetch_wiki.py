@@ -11,7 +11,7 @@ import urllib.parse
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(__file__))
-from wikitext import clean, find_infobox, split_sections  # noqa: E402
+from wikitext import clean, find_infobox, link_targets, split_sections  # noqa: E402
 
 API = "https://ja.wikipedia.org/w/api.php"
 UA = "jinja-map-gunma/0.1 (https://github.com/YoheiOnozato/jinja-map)"
@@ -113,6 +113,7 @@ def digest(title, a):
         "website": pick("公式サイト", "ウェブサイト", "HP", "URL"),
         "intro": intro[:400],
         "history": history.strip()[:1500],
+        "links": link_targets(a["wikitext"]),
     }
 
 

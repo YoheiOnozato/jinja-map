@@ -3,6 +3,7 @@
 入力: build/osm.geojson, build/wiki.json
 出力: site/data/shrines.geojson, site/data/summary.json
 """
+import datetime
 import json
 import math
 import os
@@ -153,6 +154,7 @@ def main():
                 "intro": intro[:300],
                 "history": history[:900],
                 "persons": persons_in(text_for_person),
+                "links": ((w or {}).get("links") or [])[:200],
                 "wikipedia": (w or {}).get("title", ""),
                 "wikidata": (w or {}).get("wikidata", "") or (osm_props or {}).get("wikidata", ""),
             },
@@ -199,6 +201,8 @@ def main():
         "wiki_skipped_no_coord": skipped_no_coord,
         "with_deity": sum(1 for f in features if f["properties"]["deity"]),
         "with_history": sum(1 for f in features if f["properties"]["history"]),
+        "generated": datetime.date.today().isoformat(),
+        "with_links": sum(1 for f in features if f["properties"]["links"]),
         "with_persons": sum(1 for f in features if f["properties"]["persons"]),
         "rank_ge3": sum(1 for f in features if f["properties"]["rank"] >= 3),
         "rank_dist": {},
@@ -209,6 +213,8 @@ def main():
     os.makedirs(OUT_DIR, exist_ok=True)
     with open(os.path.join(OUT_DIR, "shrines.geojson"), "w", encoding="utf-8") as fh:
         json.dump({"type": "FeatureCollection", "features": features}, fh, ensure_ascii=False)
+    with open(os.path.join(OUT_DIR, "persons.json"), "w", encoding="utf-8") as fh:
+        json.dump(PERSONS, fh, ensure_ascii=False)
     with open(os.path.join(OUT_DIR, "summary.json"), "w", encoding="utf-8") as fh:
         json.dump(summary, fh, ensure_ascii=False, indent=2)
     print(json.dumps(summary, ensure_ascii=False, indent=2))

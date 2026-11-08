@@ -6,74 +6,114 @@
 <title>群馬の神社マップ ― 社格・系統・由来</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
-  html, body, #map { margin: 0; height: 100%; font-family: -apple-system, "Hiragino Sans", sans-serif; }
-  #ui { position: absolute; z-index: 1000; top: 10px; left: 52px; right: 10px; max-width: 460px; }
-  #searchrow { display: flex; box-shadow: 0 2px 8px #0004; border-radius: 24px; overflow: hidden; background: #fff; }
+  :root { --red: #b3261e; --paper: #f5f0e6; --ink: #2b2118; }
+  html, body, #map { margin: 0; height: 100%; font-family: -apple-system, "Hiragino Mincho ProN", "Hiragino Sans", serif; color: var(--ink); }
+  #top { position: absolute; z-index: 1000; top: 10px; left: 52px; right: 10px; max-width: 460px; }
+  #searchrow { display: flex; box-shadow: 0 2px 8px #0004; border-radius: 24px; overflow: hidden; background: var(--paper); border: 1px solid #d8c9a8; }
   #q { flex: 1; min-width: 0; border: 0; padding: 11px 14px; font-size: 16px; outline: none; background: transparent; }
-  #go { border: 0; background: #b3261e; color: #fff; padding: 0 16px; font-size: 15px; }
-  .chip { display: inline-block; margin: 6px 6px 0 0; padding: 6px 10px; background: #fff; border-radius: 16px;
-          box-shadow: 0 1px 5px #0003; font-size: 13px; color: #1a56b0; border: 0; }
-  #panel { display: none; margin-top: 6px; background: #fff; padding: 10px; border-radius: 10px; box-shadow: 0 2px 8px #0004; font-size: 14px; }
-  #panel label { display: block; margin: 6px 0 2px; color: #555; font-size: 12px; }
-  #panel select { width: 100%; padding: 6px; font-size: 15px; }
-  #hint { margin-top: 6px; font-size: 12px; color: #444; background: #fffd; padding: 3px 8px; border-radius: 8px; display: inline-block; }
-  .card { font-size: 13px; line-height: 1.5; max-height: 55vh; overflow-y: auto; }
+  #go { border: 0; background: var(--red); color: #fff; padding: 0 16px; font-size: 15px; }
+  #hint { margin-top: 6px; font-size: 12px; background: var(--paper); padding: 3px 10px; border-radius: 10px; display: inline-block; box-shadow: 0 1px 4px #0003; }
+  #sheet { position: absolute; z-index: 1000; left: 0; right: 0; bottom: 0; background: var(--paper); border-radius: 18px 18px 0 0;
+           box-shadow: 0 -2px 12px #0004; max-height: 62vh; display: flex; flex-direction: column; }
+  #sheet.closed #body, #sheet.closed #tabs { display: none; }
+  #handle { padding: 8px 14px 10px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+  #handle .mark { width: 38px; height: 38px; border-radius: 6px; background: var(--red); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+  #handle .t { flex: 1; } #handle .t b { font-size: 17px; display: block; } #handle .t span { font-size: 12px; color: #6b5d4a; }
+  #handle .arrow { font-size: 18px; color: #6b5d4a; }
+  #tabs { display: flex; border-bottom: 1px solid #d8c9a8; overflow-x: auto; }
+  #tabs button { flex: 1; border: 0; background: none; padding: 10px 6px; font-size: 14px; white-space: nowrap; color: #6b5d4a; border-bottom: 3px solid transparent; }
+  #tabs button.on { color: var(--ink); font-weight: bold; border-bottom-color: var(--red); }
+  #body { overflow-y: auto; padding: 12px 14px 16px; font-size: 14px; line-height: 1.6; }
+  .pane { display: none; } .pane.on { display: block; }
+  input[type=text], select { width: 100%; box-sizing: border-box; padding: 9px; font-size: 16px; border: 1px solid #d8c9a8; border-radius: 8px; background: #fff; margin: 4px 0 10px; }
+  .kind { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px dotted #d8c9a8; }
+  .kind i { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+  .kind span { flex: 1; } .kind em { font-style: normal; color: #6b5d4a; }
+  .chips span { display: inline-block; margin: 0 6px 6px 0; padding: 5px 10px; border-radius: 14px; background: #fff; border: 1px solid #d8c9a8; cursor: pointer; }
+  .btn { display: block; width: 100%; padding: 12px; border: 0; border-radius: 10px; background: var(--red); color: #fff; font-size: 16px; margin-top: 10px; }
+  .small { font-size: 12px; color: #6b5d4a; }
+  .card { font-size: 13px; line-height: 1.55; max-height: 50vh; overflow-y: auto; }
   .card h3 { margin: 0 0 4px; font-size: 18px; }
   .tag { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 10px; margin: 0 4px 4px 0; background: #eee; }
-  .tag.k { background: #5b3d9e; color: #fff; }
-  .tag.r { background: #f6e3b4; color: #5a4300; }
+  .tag.k { background: #5b3d9e; color: #fff; } .tag.r { background: #f6e3b4; color: #5a4300; }
   .card table { border-collapse: collapse; width: 100%; margin: 4px 0; }
   .card th { text-align: left; color: #666; font-weight: normal; white-space: nowrap; padding: 2px 8px 2px 0; vertical-align: top; }
-  .card td { padding: 2px 0; }
-  .card p { margin: 6px 0; }
-  .card summary { color: #b3261e; font-weight: bold; cursor: pointer; margin: 6px 0; }
-  .src { font-size: 11px; color: #777; }
+  .card td { padding: 2px 0; } .card p { margin: 6px 0; }
+  .card summary { color: var(--red); font-weight: bold; cursor: pointer; margin: 6px 0; }
+  .src { font-size: 11px; color: #777; } .links a { margin-right: 10px; }
   .pp { color: #1a56b0; text-decoration: underline; cursor: pointer; margin-right: 8px; }
-  .links a { margin-right: 10px; }
-  .leaflet-popup-content { margin: 12px 14px; }
 </style>
 </head>
 <body>
-<div id="ui">
+<div id="top">
   <div id="searchrow">
-    <input id="q" type="search" placeholder="人物名・神社名・祭神で検索（例：徳川家康、新田義貞）">
+    <input id="q" type="search" placeholder="人物名でゆかりの神社を検索（例：徳川家康）">
     <button id="go">検索</button>
-  </div>
-  <button class="chip" id="toggle">≡ 絞り込み</button>
-  <div id="panel">
-    <label>社格</label>
-    <select id="rankSel">
-      <option value="1">すべて</option>
-      <option value="2">社格・記事のある神社</option>
-      <option value="3">式内社・県社など以上</option>
-      <option value="5">名神大社・官幣大社以上</option>
-      <option value="6">一宮・二十二社のみ</option>
-    </select>
-    <label>系統</label>
-    <select id="kindSel"><option value="">すべて</option></select>
   </div>
   <div id="hint">読み込み中…</div>
 </div>
 <div id="map"></div>
+
+<div id="sheet" class="closed">
+  <div id="handle">
+    <div class="mark">社</div>
+    <div class="t"><b>群馬の神社マップ</b><span id="sub">読み込み中…</span></div>
+    <div class="arrow" id="arrow">▲</div>
+  </div>
+  <div id="tabs">
+    <button data-t="filter" class="on">絞り込み</button>
+    <button data-t="person">人物で探す</button>
+    <button data-t="about">このサイト</button>
+  </div>
+  <div id="body">
+    <div class="pane on" id="p-filter">
+      <input type="text" id="nameQ" placeholder="神社の名前で探す（例：赤城）">
+      <div class="small">社格</div>
+      <select id="rankSel">
+        <option value="1">すべて</option>
+        <option value="2">社格・記事のある神社</option>
+        <option value="3">式内社・県社など以上</option>
+        <option value="5">名神大社・官幣大社以上</option>
+        <option value="6">一宮・二十二社のみ</option>
+      </select>
+      <div class="small">系統（タップで絞り込み・件数は社数）</div>
+      <div id="kinds"></div>
+      <button class="btn" id="showMap1">地図を見る</button>
+    </div>
+    <div class="pane" id="p-person">
+      <p>歴史上の人物の名前を入れると、その人物ゆかりの神社を地図に表示します。神社の Wikipedia 記事が、その人物の記事にリンクしている場合などが対象です。</p>
+      <input type="text" id="personQ" placeholder="例：徳川家康、新田義貞、小栗上野介">
+      <button class="btn" id="personGo" style="margin-top:0">探す</button>
+      <p class="small" style="margin-top:12px">よく出る人物</p>
+      <div class="chips" id="personChips"></div>
+    </div>
+    <div class="pane" id="p-about">
+      <p><b>データについて</b></p>
+      <p>神社の位置・名前は <a href="https://www.openstreetmap.org/">OpenStreetMap</a>、主祭神・社格・創建・由来は <a href="https://ja.wikipedia.org/">Wikipedia</a> から自動で集めています。社格・系統・人物は文章から機械的に読み取ったもので、誤りを含むことがあります。</p>
+      <p id="stats" class="small"></p>
+      <p class="small">地図：国土地理院 ／ 神社データ：© OpenStreetMap contributors (ODbL)、Wikipedia (CC BY-SA)。情報のない神社は小さな灰色の点で表示します。</p>
+      <p class="small">試作版（群馬県のみ）。うまくいけば全国に広げる予定です。</p>
+    </div>
+  </div>
+</div>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const map = L.map('map', { zoomControl: true }).setView([36.5, 139.0], 9);
+const map = L.map('map').setView([36.5, 139.0], 9);
 L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
-  attribution: '地図：<a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院</a> / データ：© OpenStreetMap contributors・Wikipedia (CC BY-SA)',
+  attribution: '地図：<a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院</a> / © OpenStreetMap contributors・Wikipedia (CC BY-SA)',
   maxZoom: 18
 }).addTo(map);
 
+const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const RADIUS = {1: 3, 2: 5, 3: 6, 4: 8, 5: 11, 6: 14};
 const PALETTE = ['#e6194b','#3cb44b','#4363d8','#f58231','#911eb4','#46a3a3','#c1a300','#8c564b','#e377c2','#17becf','#7f7f7f','#bcbd22','#1f77b4','#d62728','#2ca02c','#9467bd','#ff7f0e','#555'];
 const kindColor = {};
-let all = [], layer = L.layerGroup().addTo(map), personNames = [];
+let all = [], persons = {}, activeKinds = new Set(), layer = L.layerGroup().addTo(map);
+const colorOf = k => kindColor[k] || (kindColor[k] = PALETTE[Object.keys(kindColor).length % PALETTE.length]);
 
-function colorOf(kind) {
-  if (!kindColor[kind]) kindColor[kind] = PALETTE[Object.keys(kindColor).length % PALETTE.length];
-  return kindColor[kind];
-}
-
+// ---- ポップアップ ----
 function popupHtml(p, lat, lon) {
   let h = '<div class="card"><h3>' + esc(p.name) + '</h3>';
   if (p.kind) h += '<span class="tag k">' + esc(p.kind) + '</span>';
@@ -87,9 +127,7 @@ function popupHtml(p, lat, lon) {
   }
   h += '</table>';
   if (p.intro) h += '<p>' + esc(p.intro) + '</p>';
-  if (p.persons && p.persons.length) {
-    h += '<p>ゆかりの人物：' + p.persons.map(x => '<span class="pp" data-p="' + esc(x) + '">' + esc(x) + '</span>').join('') + '</p>';
-  }
+  if (p.persons && p.persons.length) h += '<p>ゆかりの人物：' + p.persons.map(x => '<span class="pp" data-p="' + esc(x) + '">' + esc(x) + '</span>').join('') + '</p>';
   if (p.history) h += '<details><summary>▶ 歴史・由来（Wikipedia）</summary><p>' + esc(p.history).replace(/\n/g, '<br>') + '</p></details>';
   if (p.wikipedia) h += '<div class="src">出典：Wikipedia「' + esc(p.wikipedia) + '」(CC BY-SA)</div>';
   h += '<div class="links">';
@@ -97,63 +135,99 @@ function popupHtml(p, lat, lon) {
   h += '<a target="_blank" rel="noopener" href="https://ndlsearch.ndl.go.jp/search?cs=bib&keyword=' + encodeURIComponent(p.name) + '">国立国会図書館</a>';
   h += '<a target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=' + lat + ',' + lon + '">Googleマップ</a>';
   if (p.wikidata) h += '<a target="_blank" rel="noopener" href="https://www.wikidata.org/wiki/' + esc(p.wikidata) + '">Wikidata</a>';
-  h += '</div></div>';
-  return h;
+  return h + '</div></div>';
 }
 
-function draw(list, fit) {
+// ---- 検索 ----
+function expandTerms(q) {
+  const terms = new Set([q]);
+  for (const [canon, aliases] of Object.entries(persons)) {
+    if (canon === q || aliases.includes(q) || canon.includes(q) && q.length >= 2) { terms.add(canon); aliases.forEach(a => terms.add(a)); }
+  }
+  return [...terms];
+}
+function matchPerson(f, terms) {
+  const p = f.properties;
+  if ((p.persons || []).some(x => terms.includes(x))) return true;
+  if ((p.links || []).some(l => terms.includes(l))) return true;
+  const text = p.name + ' ' + p.deity + ' ' + p.history + ' ' + p.intro;
+  return terms.some(t => text.includes(t));
+}
+function currentList() {
+  const q = $('q').value.trim(), nameQ = $('nameQ').value.trim();
+  const minRank = +$('rankSel').value;
+  const terms = q ? expandTerms(q) : null;
+  return all.filter(f => {
+    const p = f.properties;
+    if (p.rank < minRank) return false;
+    if (activeKinds.size && !activeKinds.has(p.kind)) return false;
+    if (nameQ && !p.name.includes(nameQ)) return false;
+    return terms ? matchPerson(f, terms) : true;
+  });
+}
+function draw(fit) {
+  const list = currentList();
   layer.clearLayers();
   list.slice().sort((a, b) => a.properties.rank - b.properties.rank).forEach(f => {
     const p = f.properties, [lon, lat] = f.geometry.coordinates;
-    const m = L.circleMarker([lat, lon], {
-      radius: RADIUS[p.rank] || 3, color: '#fff', weight: 1,
-      fillColor: colorOf(p.kind), fillOpacity: p.rank >= 2 ? 0.9 : 0.55
-    });
-    m.bindPopup(() => popupHtml(p, lat, lon), { maxWidth: 340, autoPanPadding: [20, 80] });
-    m.bindTooltip(esc(p.name));
-    m.addTo(layer);
+    L.circleMarker([lat, lon], { radius: RADIUS[p.rank] || 3, color: '#fff', weight: 1, fillColor: colorOf(p.kind), fillOpacity: p.rank >= 2 ? 0.9 : 0.55 })
+      .bindPopup(() => popupHtml(p, lat, lon), { maxWidth: 340, autoPanPadding: [20, 80] })
+      .bindTooltip(esc(p.name)).addTo(layer);
   });
-  document.getElementById('hint').textContent = list.length + ' / ' + all.length + ' 社を表示';
-  if (fit && list.length) {
-    map.fitBounds(L.latLngBounds(list.map(f => [f.geometry.coordinates[1], f.geometry.coordinates[0]])), { padding: [40, 40], maxZoom: 13 });
-  }
+  $('hint').textContent = list.length + ' / ' + all.length + ' 社を表示';
+  $('sub').textContent = '群馬県の神社 ' + all.length + ' 社';
+  if (fit && list.length) map.fitBounds(L.latLngBounds(list.map(f => [f.geometry.coordinates[1], f.geometry.coordinates[0]])), { padding: [40, 120], maxZoom: 13 });
+}
+function searchPerson(name) {
+  $('q').value = name; $('personQ').value = name;
+  setSheet(false); map.closePopup(); draw(true);
 }
 
-function apply(fit) {
-  const q = document.getElementById('q').value.trim();
-  const minRank = +document.getElementById('rankSel').value;
-  const kind = document.getElementById('kindSel').value;
-  const list = all.filter(f => {
-    const p = f.properties;
-    if (p.rank < minRank) return false;
-    if (kind && p.kind !== kind) return false;
-    if (!q) return true;
-    return (p.name + ' ' + p.deity + ' ' + (p.persons || []).join(' ') + ' ' + p.history + ' ' + p.intro).includes(q);
-  });
-  draw(list, fit && !!q);
+// ---- 下のシート ----
+function setSheet(open) {
+  $('sheet').classList.toggle('closed', !open);
+  $('arrow').textContent = open ? '▼' : '▲';
 }
-
-fetch('data/shrines.geojson').then(r => r.json()).then(g => {
-  all = g.features;
-  const kinds = [...new Set(all.map(f => f.properties.kind))].sort();
-  const sel = document.getElementById('kindSel');
-  kinds.forEach(k => sel.insertAdjacentHTML('beforeend', '<option>' + esc(k) + '</option>'));
-  apply(false);
-}).catch(() => { document.getElementById('hint').textContent = 'データを読み込めませんでした'; });
-
-document.getElementById('go').onclick = () => apply(true);
-document.getElementById('q').addEventListener('keydown', e => { if (e.key === 'Enter') apply(true); });
-document.getElementById('q').addEventListener('input', () => { if (!document.getElementById('q').value) apply(false); });
-document.getElementById('rankSel').onchange = () => apply(false);
-document.getElementById('kindSel').onchange = () => apply(false);
-document.getElementById('toggle').onclick = () => {
-  const p = document.getElementById('panel');
-  p.style.display = p.style.display === 'block' ? 'none' : 'block';
-};
-document.addEventListener('click', e => {
-  const t = e.target.closest('.pp');
-  if (t) { document.getElementById('q').value = t.dataset.p; map.closePopup(); apply(true); }
+$('handle').onclick = () => setSheet($('sheet').classList.contains('closed'));
+document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('.pane').forEach(p => p.classList.toggle('on', p.id === 'p-' + b.dataset.t));
 });
+
+// ---- 読み込み ----
+Promise.all([
+  fetch('data/shrines.geojson').then(r => r.json()),
+  fetch('data/persons.json').then(r => r.json()).catch(() => ({})),
+  fetch('data/summary.json').then(r => r.json()).catch(() => null)
+]).then(([g, per, sum]) => {
+  all = g.features; persons = per;
+  // 系統
+  const counts = {};
+  all.forEach(f => counts[f.properties.kind] = (counts[f.properties.kind] || 0) + 1);
+  $('kinds').innerHTML = Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([k, n]) =>
+    '<label class="kind"><input type="checkbox" data-k="' + esc(k) + '"><i style="background:' + colorOf(k) + '"></i><span>' + esc(k) + '</span><em>' + n + '</em></label>').join('');
+  document.querySelectorAll('#kinds input').forEach(c => c.onchange = () => {
+    c.checked ? activeKinds.add(c.dataset.k) : activeKinds.delete(c.dataset.k); draw(false);
+  });
+  // よく出る人物
+  const pc = {};
+  all.forEach(f => (f.properties.persons || []).forEach(x => pc[x] = (pc[x] || 0) + 1));
+  $('personChips').innerHTML = Object.entries(pc).sort((a, b) => b[1] - a[1]).slice(0, 14)
+    .map(([n, c]) => '<span data-p="' + esc(n) + '">' + esc(n) + '（' + c + '）</span>').join('');
+  document.querySelectorAll('#personChips span').forEach(s => s.onclick = () => searchPerson(s.dataset.p));
+  if (sum) $('stats').textContent = '収録 ' + sum.total + ' 社のうち、主祭神が分かるもの ' + sum.with_deity + ' 社、由来の文章があるもの ' + sum.with_history + ' 社、Wikipedia 記事があるもの ' + sum.wiki_articles + ' 社。更新日 ' + (sum.generated || '');
+  draw(false);
+}).catch(() => { $('hint').textContent = 'データを読み込めませんでした'; });
+
+$('go').onclick = () => draw(true);
+$('q').addEventListener('keydown', e => { if (e.key === 'Enter') draw(true); });
+$('q').addEventListener('input', () => { if (!$('q').value) draw(false); });
+$('rankSel').onchange = () => draw(false);
+$('nameQ').addEventListener('input', () => draw(false));
+$('showMap1').onclick = () => { setSheet(false); draw(true); };
+$('personGo').onclick = () => { const v = $('personQ').value.trim(); if (v) searchPerson(v); };
+$('personQ').addEventListener('keydown', e => { if (e.key === 'Enter') $('personGo').click(); });
+document.addEventListener('click', e => { const t = e.target.closest('.pp'); if (t) searchPerson(t.dataset.p); });
 </script>
 </body>
 </html>

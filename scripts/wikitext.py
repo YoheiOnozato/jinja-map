@@ -90,3 +90,17 @@ def split_sections(wikitext):
     for i in range(1, len(pieces), 2):
         sections.append((clean(pieces[i]), pieces[i + 1]))
     return sections
+
+
+def link_targets(wikitext):
+    """本文中の内部リンク先（記事名）の集合。人物検索の手がかりにする。"""
+    body = re.split(r"^==\s*(?:脚注|外部リンク|関連項目|参考文献)\s*==", wikitext, flags=re.M)[0]
+    out = set()
+    for m in re.finditer(r"\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|[^\]]*)?\]\]", body):
+        t = m.group(1).strip()
+        if not t or ":" in t or "：" in t or len(t) > 20:
+            continue
+        if re.fullmatch(r"[0-9]+年|[0-9]+月[0-9]+日|[0-9]+世紀|西暦.*", t):
+            continue
+        out.add(t)
+    return sorted(out)
