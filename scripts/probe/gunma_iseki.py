@@ -14,18 +14,30 @@ def get(url):
         return r.read()
 
 
-html = get(BASE).decode("utf-8", "replace")
-links = sorted(set(re.findall(r'href="([^"]+\.(?:shp|dbf|shx|prj|xlsx|zip|csv))"', html)))
-print("links:", links)
+raw = get(BASE)
+links = sorted(set(re.findall(rb'href="([^"]+\.(?:shp|dbf|shx|prj|xlsx|zip|csv))"', raw)))
+print("links(raw):", links)
+
+
+def dec(bs):
+    for enc in ("utf-8", "cp932"):
+        try:
+            return bs.decode(enc)
+        except UnicodeDecodeError:
+            pass
+    return bs.decode("latin-1")
+
+
 files = {}
 for l in links:
-    u = urllib.parse.urljoin(BASE, l)
-    name = urllib.parse.unquote(u.rsplit("/", 1)[-1])
+    q = urllib.parse.quote(urllib.parse.unquote_to_bytes(l), safe="/:")
+    u = urllib.parse.urljoin(BASE, q)
+    name = dec(urllib.parse.unquote_to_bytes(l)).rsplit("/", 1)[-1]
     try:
         files[name] = get(u)
         print("got", name, len(files[name]))
     except Exception as e:  # noqa: BLE001
-        print("fail", name, e)
+        print("fail", repr(l), u, e)
 shp = next((v for k, v in files.items() if k == "遺跡.shp"), None)
 dbf = next((v for k, v in files.items() if k == "遺跡.dbf"), None)
 if shp:
