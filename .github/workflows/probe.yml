@@ -1,0 +1,12 @@
+name: probe-data-source
+# 外部データの中身を確認するだけの手動ワークフロー（サイトのデータは変更しない）
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 scripts/probe/gunma_iseki.py
