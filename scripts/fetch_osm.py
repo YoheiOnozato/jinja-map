@@ -1,4 +1,4 @@
-"""群馬県の神社を OpenStreetMap (Overpass API) から取得し、GeoJSON と集計を出力する。
+"""関東1都6県の神社を OpenStreetMap (Overpass API) から取得し、GeoJSON と集計を出力する。
 
 標準ライブラリのみ。GitHub Actions 上で実行する想定。
 出力:
@@ -16,10 +16,12 @@ ENDPOINTS = [
     "https://overpass-api.de/api/interpreter",
     "https://overpass.kumi.systems/api/interpreter",
 ]
-# ISO3166-2 JP-10 = 群馬県
+# 関東1都6県（ISO3166-2）
+PREFS = [("JP-08", "茨城県"), ("JP-09", "栃木県"), ("JP-10", "群馬県"), ("JP-11", "埼玉県"),
+         ("JP-12", "千葉県"), ("JP-13", "東京都"), ("JP-14", "神奈川県")]
 QUERY = """
-[out:json][timeout:180];
-area["ISO3166-2"="JP-10"]->.a;
+[out:json][timeout:300];
+area["ISO3166-2"="%s"]->.a;
 (
   nwr["religion"="shinto"](area.a);
   nwr["amenity"="place_of_worship"]["name"~"神社|神宮|八幡宮|稲荷|天満宮|大社|宮$"](area.a);
@@ -30,16 +32,16 @@ out center tags;
 OUT_DIR = os.path.join(os.path.dirname(__file__), "..", "build")
 
 
-def fetch():
-    body = urllib.parse.urlencode({"data": QUERY}).encode()
+def fetch(iso):
+    body = urllib.parse.urlencode({"data": QUERY % iso}).encode()
     last = None
     for url in ENDPOINTS:
-        for attempt in range(3):
+        for attempt in range(4):
             try:
                 req = urllib.request.Request(
-                    url, data=body, headers={"User-Agent": "jinja-map-gunma/0.1"}
+                    url, data=body, headers={"User-Agent": "jinja-map/0.2"}
                 )
-                with urllib.request.urlopen(req, timeout=240) as r:
+                with urllib.request.urlopen(req, timeout=330) as r:
                     return json.load(r)
             except Exception as e:  # noqa: BLE001
                 last = e
@@ -48,7 +50,7 @@ def fetch():
     raise SystemExit(f"Overpass 取得失敗: {last}")
 
 
-def to_feature(el):
+def to_feature(el, pref=""):
     tags = el.get("tags", {})
     if el["type"] == "node":
         lat, lon = el["lat"], el["lon"]
@@ -63,6 +65,7 @@ def to_feature(el):
         "geometry": {"type": "Point", "coordinates": [round(lon, 6), round(lat, 6)]},
         "properties": {
             "id": f'{el["type"]}/{el["id"]}',
+            "pref": pref,
             "name": tags.get("name", ""),
             "name_en": tags.get("name:en", ""),
             "enshrine": enshrine,
@@ -74,8 +77,20 @@ def to_feature(el):
 
 
 def main():
-    data = fetch()
-    features = [f for f in (to_feature(e) for e in data.get("elements", [])) if f]
+    features, seen, stamp, per_pref = [], set(), "", {}
+    for iso, pname in PREFS:
+        data = fetch(iso)
+        stamp = data.get("osm3s", {}).get("timestamp_osm_base", "") or stamp
+        n = 0
+        for e in data.get("elements", []):
+            f = to_feature(e, pname)
+            if f and f["properties"]["id"] not in seen:
+                seen.add(f["properties"]["id"])
+                features.append(f)
+                n += 1
+        per_pref[pname] = n
+        print(pname, n, flush=True)
+        time.sleep(8)
     total = len(features)
     named = sum(1 for f in features if f["properties"]["name"])
     summary = {
@@ -84,7 +99,8 @@ def main():
         "with_enshrine": sum(1 for f in features if f["properties"]["enshrine"]),
         "with_wikipedia": sum(1 for f in features if f["properties"]["wikipedia"]),
         "with_wikidata": sum(1 for f in features if f["properties"]["wikidata"]),
-        "osm_timestamp": data.get("osm3s", {}).get("timestamp_osm_base", ""),
+        "osm_timestamp": stamp,
+        "per_pref": per_pref,
     }
     os.makedirs(OUT_DIR, exist_ok=True)
     with open(os.path.join(OUT_DIR, "osm.geojson"), "w", encoding="utf-8") as fh:

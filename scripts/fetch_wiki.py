@@ -1,4 +1,4 @@
-"""Wikipedia（日本語版）のカテゴリ「群馬県の神社」から神社の記事を集める。
+"""Wikipedia（日本語版）の関東各都県の神社カテゴリから神社の記事を集める。
 
 出力: build/wiki.json （記事ごとの座標・情報欄・由緒の抜粋）
 GitHub Actions 上で実行する想定。標準ライブラリのみ。
@@ -14,8 +14,12 @@ sys.path.insert(0, os.path.dirname(__file__))
 from wikitext import clean, find_infobox, link_targets, split_sections  # noqa: E402
 
 API = "https://ja.wikipedia.org/w/api.php"
-UA = "jinja-map-gunma/0.1 (https://github.com/YoheiOnozato/jinja-map)"
-ROOTS = ["Category:群馬県の神社", "Category:上野国の式内社", "Category:上野国一宮", "Category:群馬県の神道"]
+UA = "jinja-map/0.2 (https://github.com/YoheiOnozato/jinja-map)"
+PREF_NAMES = ["茨城県", "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県"]
+ROOTS = [("Category:%sの神社" % n, n) for n in PREF_NAMES] + [("Category:群馬県の神道", "群馬県")] + [
+    ("Category:%s" % c, "") for c in (
+        "常陸国の式内社 下野国の式内社 上野国の式内社 武蔵国の式内社 相模国の式内社 上総国の式内社 下総国の式内社 安房国の式内社 "
+        "常陸国一宮 下野国一宮 上野国一宮 武蔵国一宮 相模国一宮 上総国一宮 下総国一宮 安房国一宮").split()]
 MAX_DEPTH = 3
 OUT = os.path.join(os.path.dirname(__file__), "..", "build", "wiki.json")
 HISTORY_HEADS = ("歴史", "由緒", "由来", "沿革", "歴史・由緒", "歴史と由緒", "縁起", "概要")
@@ -37,10 +41,10 @@ def call(params):
 
 def category_pages():
     """カテゴリを再帰的にたどり、記事（標準名前空間）のタイトル集合を返す。"""
-    seen_cats, titles = set(), set()
-    queue = [(r, 0) for r in ROOTS]
+    seen_cats, titles = set(), {}
+    queue = [(r, 0, pf) for r, pf in ROOTS]
     while queue:
-        cat, depth = queue.pop(0)
+        cat, depth, pf = queue.pop(0)
         if cat in seen_cats:
             continue
         seen_cats.add(cat)
@@ -50,15 +54,16 @@ def category_pages():
                              cmlimit="500", cmtype="page|subcat", **cont))
             for m in data["query"]["categorymembers"]:
                 if m["ns"] == 0:
-                    titles.add(m["title"])
+                    if not titles.get(m["title"]):
+                        titles[m["title"]] = pf
                 elif m["ns"] == 14 and depth < MAX_DEPTH:
-                    queue.append((m["title"], depth + 1))
+                    queue.append((m["title"], depth + 1, pf))
             if "continue" in data:
                 cont = data["continue"]
             else:
                 break
         time.sleep(0.2)
-    return sorted(titles), sorted(seen_cats)
+    return titles, sorted(seen_cats)
 
 
 def fetch_articles(titles):
@@ -153,11 +158,11 @@ def digest(title, a):
 
 
 def main():
-    titles, cats = category_pages()
+    tpref, cats = category_pages()
+    titles = sorted(tpref)
     print(f"カテゴリ {len(cats)} 件 / 記事 {len(titles)} 件")
-    print("カテゴリ一覧:", " / ".join(cats))
     arts = fetch_articles(titles)
-    items = [digest(t, a) for t, a in arts.items()]
+    items = [dict(digest(t, a), pref=tpref.get(t, "")) for t, a in arts.items()]
     all_links = {l for x in items for l in x["links"]}
     print(f"リンク先の記事 {len(all_links)} 件から人物を判定します")
     people_map = resolve_people(all_links)

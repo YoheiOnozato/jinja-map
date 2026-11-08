@@ -128,6 +128,9 @@ def main():
         wiki = json.load(fh)
 
     by_title = {w["title"]: w for w in wiki}
+    for w_ in wiki:
+        w_["_n"] = norm_name(w_["name"])
+        w_["_t"] = norm_name(w_["title"])
     used = set()
     features = []
 
@@ -154,6 +157,7 @@ def main():
                 "rank_label": ((w or {}).get("rank", "") or rank_label)[:80],
                 "rank_src": "wikipedia" if (w or {}).get("rank") else ("auto" if rank_label else ""),
                 "osm_id": (osm_props or {}).get("id", ""),
+                "pref": (osm_props or {}).get("pref", "") or (w or {}).get("pref", ""),
                 "kind": kind,
                 "founded": (w or {}).get("founded", ""),
                 "founded_year": e_year,
@@ -180,10 +184,11 @@ def main():
         if wp.startswith("ja:") and wp[3:] in by_title:
             w = by_title[wp[3:]]
         if w is None and p.get("name"):
+            pn = norm_name(p["name"])
             for cand in wiki:
                 if cand["title"] in used or cand["lat"] is None:
                     continue
-                if norm_name(cand["name"]) == norm_name(p["name"]) or norm_name(cand["title"]).startswith(norm_name(p["name"])):
+                if cand["_n"] == pn or cand["_t"].startswith(pn):
                     if haversine(lat, lon, cand["lat"], cand["lon"]) < 600:
                         w = cand
                         break
@@ -202,6 +207,20 @@ def main():
             continue
         features.append(make(w["name"], w["lon"], w["lat"], w, None))
         added += 1
+
+    # 都県が分からない記事（式内社カテゴリ由来など）は、所在地の文字→最寄りの OSM 点の順で補う
+    pts = [(f["geometry"]["coordinates"][1], f["geometry"]["coordinates"][0], f["properties"]["pref"]) for f in features if f["properties"]["pref"]]
+    for f in features:
+        pr = f["properties"]
+        if pr["pref"]:
+            continue
+        for n_ in ("茨城県", "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県"):
+            if n_ in (pr.get("address") or ""):
+                pr["pref"] = n_
+                break
+        if not pr["pref"] and pts:
+            lo, la = f["geometry"]["coordinates"]
+            pr["pref"] = min(pts, key=lambda t: (t[0] - la) ** 2 + (t[1] - lo) ** 2)[2]
 
     # 確認済みの修正（data/overrides.json）を重ねる。毎週の自動生成でも消えない。
     ov_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "overrides.json")
@@ -241,6 +260,7 @@ def main():
         "with_history": sum(1 for f in features if f["properties"]["history"]),
         "generated": datetime.date.today().isoformat(),
         "overrides_applied": ov_applied,
+        "pref_dist": {n_: sum(1 for f in features if f["properties"]["pref"] == n_) for n_ in ("茨城県", "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県")},
         "with_links": sum(1 for f in features if f["properties"]["links"]),
         "with_people": sum(1 for f in features if f["properties"]["people"]),
         "with_persons": sum(1 for f in features if f["properties"]["persons"]),

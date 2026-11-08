@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>群馬の神社マップ ― 社格・系統・由来</title>
+<title>関東の神社マップ ― 社格・系統・由来</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
   :root { --red: #b3261e; --paper: #f5f0e6; --ink: #2b2118; }
@@ -88,7 +88,7 @@
 <div id="sheet" class="closed">
   <div id="handle">
     <div class="mark">社</div>
-    <div class="t"><b>群馬の神社マップ</b><span id="sub">読み込み中…</span></div>
+    <div class="t"><b>関東の神社マップ</b><span id="sub">読み込み中…</span></div>
     <div class="arrow" id="arrow">▲</div>
   </div>
   <div id="tabs">
@@ -101,6 +101,8 @@
   <div id="body">
     <div class="pane on" id="p-filter">
       <input type="text" id="nameQ" placeholder="神社の名前で探す（例：赤城）">
+      <div class="small">都県</div>
+      <select id="prefSel"><option value="">関東すべて</option><option>茨城県</option><option>栃木県</option><option>群馬県</option><option>埼玉県</option><option>千葉県</option><option>東京都</option><option>神奈川県</option></select>
       <div class="small">社格</div>
       <select id="rankSel">
         <option value="1">すべて</option>
@@ -144,14 +146,14 @@
       <p>神社の位置・名前は <a href="https://www.openstreetmap.org/">OpenStreetMap</a>、主祭神・社格・創建・由来は <a href="https://ja.wikipedia.org/">Wikipedia</a> から自動で集めています。社格・系統・創建の時代・人物は文章から機械的に読み取ったもので、誤りを含むことがあります。創建の時代は伝承を含みます。</p>
       <p id="stats" class="small"></p>
       <p class="small">地図：国土地理院 ／ 神社データ：© OpenStreetMap contributors (ODbL)、Wikipedia (CC BY-SA)。情報のない神社は小さな灰色の点で表示します。</p>
-      <p class="small">神社の位置・社格・系統・由来・時代を一か所で調べられる、神社の総合サイトを目指しています。いまは試作版（群馬県のみ）です。</p>
+      <p class="small">神社の位置・社格・系統・由来・時代を一か所で調べられる、神社の総合サイトを目指しています。いまは試作版（関東1都6県）です。</p>
     </div>
   </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const map = L.map('map').setView([36.5, 139.0], 9);
+const map = L.map('map', { preferCanvas: true }).setView([36.0, 139.6], 8);
 L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
   attribution: '地図：<a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院</a> / © OpenStreetMap contributors・Wikipedia (CC BY-SA)',
   maxZoom: 18
@@ -297,10 +299,11 @@ function matchPerson(f, terms) {
 }
 function currentList() {
   const q = $('q').value.trim(), nameQ = $('nameQ').value.trim();
-  const minRank = +$('rankSel').value;
+  const minRank = +$('rankSel').value, prefQ = $('prefSel').value;
   const terms = q ? expandTerms(q) : null;
   return all.filter(f => {
     const p = f.properties;
+    if (prefQ && p.pref !== prefQ) return false;
     if (p.rank < minRank) return false;
     if (activeKinds.size && !activeKinds.has(p.kind)) return false;
     if (activeEra && p.era !== activeEra) return false;
@@ -313,13 +316,14 @@ function draw(fit) {
   layer.clearLayers();
   list.slice().sort((a, b) => a.properties.rank - b.properties.rank).forEach(f => {
     const p = f.properties, [lon, lat] = f.geometry.coordinates;
-    L.circleMarker([lat, lon], { radius: RADIUS[p.rank] || 3, color: '#fff', weight: 1, fillColor: colorBy === 'era' ? eraColor(p.era) : colorOf(p.kind), fillOpacity: p.rank >= 2 ? 0.9 : 0.55 })
+    const mk = L.circleMarker([lat, lon], { radius: RADIUS[p.rank] || 3, color: '#fff', weight: 1, fillColor: colorBy === 'era' ? eraColor(p.era) : colorOf(p.kind), fillOpacity: p.rank >= 2 ? 0.9 : 0.55 })
       .bindPopup(() => popupHtml(p, lat, lon), { maxWidth: 360, minWidth: 250, autoPanPadding: [20, 90] })
-      .bindTooltip(esc(p.name)).addTo(layer);
+      .addTo(layer);
+    if (list.length < 2500 || p.rank >= 2) mk.bindTooltip(esc(p.name));
   });
   const qv = $('q').value.trim();
   $('hint').textContent = (qv && !list.length) ? '「' + qv + '」に関わる神社は見つかりませんでした（神社の記事に名前が出る人物が対象です）' : list.length + ' / ' + all.length + ' 社を表示';
-  $('sub').textContent = '群馬県の神社 ' + all.length + ' 社';
+  $('sub').textContent = '関東の神社 ' + all.length + ' 社';
   if (fit && list.length) map.fitBounds(L.latLngBounds(list.map(f => [f.geometry.coordinates[1], f.geometry.coordinates[0]])), { padding: [40, 120], maxZoom: 13 });
 }
 function searchPerson(name) {
@@ -391,6 +395,7 @@ $('showMap2').onclick = () => { setSheet(false); draw(true); };
 $('go').onclick = () => draw(true);
 $('q').addEventListener('keydown', e => { if (e.key === 'Enter') draw(true); });
 $('q').addEventListener('input', () => { if (!$('q').value) draw(false); });
+$('prefSel').onchange = () => draw(true);
 $('rankSel').onchange = () => draw(false);
 $('nameQ').addEventListener('input', () => draw(false));
 $('showMap1').onclick = () => { setSheet(false); draw(true); };
