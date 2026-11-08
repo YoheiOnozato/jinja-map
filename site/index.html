@@ -48,6 +48,12 @@
   .eraHead i { width: 12px; height: 12px; border-radius: 50%; }
   .eraHead em { margin-left: auto; font-style: normal; color: #6b5d4a; }
   .bar { height: 5px; background: #e8dfcb; border-radius: 3px; margin: 4px 0; } .bar span { display: block; height: 5px; border-radius: 3px; }
+  .kcard { background: #fff; border: 1px solid #d8c9a8; border-radius: 10px; padding: 8px 10px; margin: 8px 0; }
+  .kcard b { font-size: 15px; } .kcard div { margin-top: 3px; }
+  .kcard span.l { color: #6b5d4a; font-size: 12px; }
+  .ibtn { border: 1px solid #d8c9a8; background: #fff; border-radius: 12px; font-size: 12px; padding: 2px 8px; color: #1a56b0; }
+  .kinfo { display: none; background: #fff; border-radius: 8px; padding: 8px 10px; margin: 4px 0 8px; font-size: 13px; }
+  .kinfo.on { display: block; }
   .pp { color: #1a56b0; text-decoration: underline; cursor: pointer; margin-right: 8px; }
 </style>
 </head>
@@ -111,16 +117,10 @@
          <b>一宮</b>：旧国（群馬なら上野国）で最も格が高いとされた神社。上野国一宮は貫前神社（富岡市）。<br>
          <b>近代社格制度</b>：1871年から1946年まで国が定めた格付け。官幣社・国幣社・府県社・郷社・村社など。<br>
          <b>別表神社</b>：社格制度の廃止後、神社本庁が有力な神社として別に扱っている神社。</p>
-      <p><b>系統（何を祀り、どこから広まった神社か）</b></p>
-      <p>神社に、お寺の「宗派」にあたる区分はありません。代わりに、祀る神様や本社の違いで「系統」に分けます。<br>
-         <b>八幡</b>：応神天皇などを祀り、武運の神として武家に崇敬された。<br>
-         <b>稲荷</b>：宇迦之御魂神などを祀り、五穀豊穣・商売繁盛の神。<br>
-         <b>天神</b>：菅原道真を祀る。学問の神。<br>
-         <b>諏訪</b>：建御名方神を祀る。信州の諏訪大社から広まった。<br>
-         <b>浅間</b>：木花咲耶姫を祀り、富士山の信仰と結びつく。<br>
-         <b>八坂・須賀（天王）</b>：素戔嗚尊を祀り、疫病除けの祇園信仰に通じる。<br>
-         <b>赤城・榛名・上州の山岳</b>：群馬の山を神として祀る山岳信仰。</p>
-      <p class="small">系統は社名と祭神の文字から機械的に分けています。複数に当てはまる神社は、最初に当たったものを表示します。</p>
+      <p><b>系統の違い（何を祀り、どこから広まった神社か）</b></p>
+      <p>神社に、お寺の「宗派」にあたる区分はありません。代わりに、祀る神様や、全国の神社の元になった「総本社」の違いで「系統」に分けます。同じ系統の神社は、同じ神様を祀り、同じ総本社から分けて祀られた（勧請された）ものが多いです。</p>
+      <div id="kindInfo"></div>
+      <p class="small">系統は社名と祭神の文字から機械的に分けています。複数に当てはまる神社は、最初に当たったものを表示します。解説は一般的な説明で、神社ごとに由緒は異なります。</p>
     </div>
     <div class="pane" id="p-about">
       <p><b>データについて</b></p>
@@ -148,6 +148,33 @@ const kindColor = {};
 let all = [], persons = {}, activeKinds = new Set(), activeEra = '', colorBy = 'kind', layer = L.layerGroup().addTo(map);
 const ERA_COLOR = {'旧石器':'#3b2a6b','縄文':'#4b2e83','弥生':'#5e35b1','古墳':'#6a3d9a','飛鳥':'#3f51b5','奈良':'#1976d2','平安':'#00897b','鎌倉':'#43a047','室町':'#9e9d24','安土桃山':'#f9a825','江戸':'#ef6c00','明治':'#d84315','大正':'#ad1457','昭和':'#6d4c41','平成':'#546e7a','令和':'#90a4ae'};
 const ERA_INFO = [['旧石器','約1.6万年前より前',''],['縄文','〜紀元前4世紀頃',''],['弥生','紀元前4世紀頃〜3世紀中頃',''],['古墳','3世紀中頃〜592年','山や岩を神として祀る信仰が国づくりと結びつく時代'],['飛鳥','592〜710年','仏教が入り、神を祀る制度が整い始める'],['奈良','710〜794年','『古事記』『日本書紀』がまとめられ、神仏習合が始まる'],['平安','794〜1185年','『延喜式』神名帳（927年）ができ、式内社・一宮の序列が整う'],['鎌倉','1185〜1333年','武士が八幡神などを厚く信仰し、神社が各地に勧請される'],['室町','1333〜1573年（南北朝・戦国を含む）','戦国大名や地域の領主が神社を保護する'],['安土桃山','1573〜1603年',''],['江戸','1603〜1868年','徳川家康を祀る東照宮が各地に建ち、参詣が広がる'],['明治','1868〜1912年','神仏分離（1868年）と近代社格制度（1871年）、神社の合祀'],['大正','1912〜1926年','明治神宮（1920年）が創建される'],['昭和','1926〜1989年','1946年に社格制度が廃止され、神社本庁ができる'],['平成','1989〜2019年',''],['令和','2019年〜','']];
+
+const KIND_INFO = {
+  '八幡': { deity: '応神天皇（誉田別命）、神功皇后、比売神など', head: '宇佐神宮（大分県）', note: '源氏が氏神として厚く信仰したことから、武士の守り神として全国に広まった。勝運・厄除け。稲荷と並んで、全国に特に数の多い系統。' },
+  '稲荷': { deity: '宇迦之御魂神（ウカノミタマ）など', head: '伏見稲荷大社（京都府）', note: '五穀豊穣の神から、商売繁盛・産業の神として信仰される。キツネは神の使いとされ、赤い鳥居が並ぶ姿が特徴。屋敷神として祀られることも多い。' },
+  '天神': { deity: '菅原道真', head: '北野天満宮（京都府）・太宰府天満宮（福岡県）', note: '学問の神・受験の神として信仰される。梅の花と結びつき、境内に牛の像がある神社が多い。' },
+  '神明（伊勢）': { deity: '天照大神', head: '伊勢神宮（三重県）', note: '皇室の祖神を祀る系統。江戸時代の伊勢参り（お伊勢参り）の広がりとともに、各地に神明社が建った。' },
+  '諏訪': { deity: '建御名方神（タケミナカタ）など', head: '諏訪大社（長野県）', note: '風や水の神、農耕の神、武神として信仰される。長野県を中心に東日本に多く、御柱祭で知られる。' },
+  '浅間': { deity: '木花咲耶姫（コノハナサクヤビメ）', head: '富士山本宮浅間大社（静岡県）', note: '富士山の信仰と結びついた系統。火山を鎮める神、安産・子授けの神。富士講の広がりで、関東各地に浅間社が建った。' },
+  '熊野': { deity: '熊野三山の神々（熊野速玉大神・熊野夫須美大神・家津美御子大神など）', head: '熊野本宮大社（和歌山県）', note: '修験道と深く結びつく。中世に熊野詣が盛んになり、各地に勧請された。' },
+  '氷川': { deity: '素戔嗚尊（スサノオ）などの三神', head: '氷川神社（さいたま市）', note: '武蔵国（埼玉・東京）の信仰が中心の系統。群馬にもあるが数は少なめ。' },
+  '白山': { deity: '菊理媛神（白山比咩神）など', head: '白山比咩神社（石川県）', note: '霊峰・白山を神として祀る信仰。北陸から全国に広まった。' },
+  '赤城・榛名・上州の山岳': { deity: '山の神々（赤城大明神・榛名の神など）', head: '赤城神社・榛名神社・妙義神社（群馬県）', note: '群馬の「上毛三山」（赤城山・榛名山・妙義山）を神として祀る山岳信仰。山そのものがご神体とされ、雨乞い・五穀豊穣・火除けなどを願った。' },
+  '八坂・須賀（天王）': { deity: '素戔嗚尊（スサノオ）、牛頭天王と習合', head: '八坂神社（京都府・祇園）', note: '疫病除けの神。夏の祇園祭・天王祭で知られる。八坂神社・須賀神社・天王社などの名で呼ばれる。' },
+  '日吉・山王': { deity: '大山咋神（オオヤマクイ）など', head: '日吉大社（滋賀県）', note: '比叡山延暦寺の守護神として広まった。山王信仰とも呼ばれる。' },
+  '春日': { deity: '武甕槌命（タケミカヅチ）など四柱', head: '春日大社（奈良県）', note: '藤原氏の氏神として祀られた系統。鹿が神の使いとされる。' },
+  '住吉': { deity: '住吉三神（底筒男命・中筒男命・表筒男命）と神功皇后', head: '住吉大社（大阪府）', note: '海の神・航海の守り神。和歌の神としても信仰される。' },
+  '香取・鹿島': { deity: '経津主神（香取）・武甕槌神（鹿島）', head: '香取神宮（千葉県）・鹿島神宮（茨城県）', note: '武の神。関東や東北に多く、武道の神として信仰される。' },
+  '雷電': { deity: '雷神（火雷大神など）', head: '雷電神社（群馬県板倉町）とされる', note: '雷や雨の神。関東北部に多い系統で、群馬は雷の多い土地。農作物を守る神として祀られた。' },
+  '愛宕': { deity: '火之迦具土神（ヒノカグツチ）など', head: '愛宕神社（京都府・愛宕山）', note: '火伏せ・防火の神。江戸時代、火事を恐れた町に広まった。' },
+  '出雲系（大国主）': { deity: '大国主命（大黒様）', head: '出雲大社（島根県）', note: '縁結び・国づくりの神として信仰される。' },
+  '琴平・金毘羅': { deity: '大物主神、崇徳天皇', head: '金刀比羅宮（香川県）', note: '海上安全の神として、船乗りに信仰された。' },
+  'その他': { deity: '地域の神・氏神など', head: '（系統を特定できないもの）', note: '地域の鎮守や氏神として祀られた神社、社名や祭神の記述から系統を判定できなかった神社。' }
+};
+function kindInfoHtml(k) {
+  const i = KIND_INFO[k]; if (!i) return '';
+  return '<div><span class="l">祀る神</span> ' + esc(i.deity) + '</div><div><span class="l">総本社</span> ' + esc(i.head) + '</div><div>' + esc(i.note) + '</div>';
+}
 const eraColor = e => ERA_COLOR[e] || '#9e9e9e';
 const colorOf = k => kindColor[k] || (kindColor[k] = PALETTE[Object.keys(kindColor).length % PALETTE.length]);
 
@@ -248,7 +275,9 @@ Promise.all([
   const counts = {};
   all.forEach(f => counts[f.properties.kind] = (counts[f.properties.kind] || 0) + 1);
   $('kinds').innerHTML = Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([k, n]) =>
-    '<label class="kind"><input type="checkbox" data-k="' + esc(k) + '"><i style="background:' + colorOf(k) + '"></i><span>' + esc(k) + '</span><em>' + n + '</em></label>').join('');
+    '<div class="krow"><label class="kind"><input type="checkbox" data-k="' + esc(k) + '"><i style="background:' + colorOf(k) + '"></i><span>' + esc(k) + '</span><button type="button" class="ibtn" data-i="' + esc(k) + '">違い</button><em>' + n + '</em></label><div class="kinfo">' + kindInfoHtml(k) + '</div></div>').join('');
+  document.querySelectorAll('#kinds .ibtn').forEach(b => b.onclick = e => { e.preventDefault(); e.stopPropagation(); b.closest('.krow').querySelector('.kinfo').classList.toggle('on'); });
+  $('kindInfo').innerHTML = Object.keys(KIND_INFO).map(k => '<div class="kcard"><b><i style="display:inline-block;width:11px;height:11px;border-radius:50%;background:' + colorOf(k) + ';margin-right:6px"></i>' + esc(k) + '</b>' + kindInfoHtml(k) + '</div>').join('');
   document.querySelectorAll('#kinds input').forEach(c => c.onchange = () => {
     c.checked ? activeKinds.add(c.dataset.k) : activeKinds.delete(c.dataset.k); draw(false);
   });
