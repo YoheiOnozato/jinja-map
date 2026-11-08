@@ -218,6 +218,14 @@ def main():
     with open(os.path.join(OUT_DIR, "summary.json"), "w", encoding="utf-8") as fh:
         json.dump(summary, fh, ensure_ascii=False, indent=2)
     print(json.dumps(summary, ensure_ascii=False, indent=2))
+    # 確認用：特定の人物に関わる神社と、記事内リンクの多い語
+    for key in ("小栗", "家康", "新田義貞"):
+        hits = [f["properties"]["name"] for f in features
+                if key in " ".join([f["properties"]["name"], f["properties"]["intro"], f["properties"]["history"]] + f["properties"]["links"])]
+        print("DEBUG", key, len(hits), hits[:15])
+    from collections import Counter
+    cnt = Counter(l for f in features for l in f["properties"]["links"])
+    print("DEBUG links", [k for k, _ in cnt.most_common(60)])
 
 
 if __name__ == "__main__":
