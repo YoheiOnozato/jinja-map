@@ -291,21 +291,35 @@ CASTLE_RANKS = [
     (4, "県指定史跡", ["県指定", "県史跡", "県の史跡", "都指定", "都史跡"]),
     (3, "市町村指定史跡", ["市指定", "町指定", "村指定", "市史跡", "町史跡", "村史跡", "市の史跡", "町の史跡", "村の史跡"]),
 ]
-RE_KEEP_REBUILT = re.compile(r"(天守|天守閣|大天守)[^。]{0,25}(復元|復興|再建|模擬|再現)|(復元|復興|再建|模擬|再現)[^。]{0,12}(天守|天守閣)")
-RE_KEEP_NONE = re.compile(r"天守[^。]{0,12}(なかった|存在しな|築かれ|造られ|上げられ)")
+RE_KEEP_REBUILT = re.compile(r"(復興|復元|再建|模擬|外観復元)(された)?(大?天守|天守閣)|(天守|天守閣)[はがを]?[^。、]{0,15}(復元|復興|再建|模擬)(された|され)")
+RE_KEEP_NONE = re.compile(r"(再建|復元)(されなかった|されず)|天守[^。]{0,12}(なかった|存在しな|築かれなかった|造られなかった)")
+RE_TEN_REBUILT = re.compile(r"復元|復興|再建|模擬|再現|RC|鉄筋|鉄骨|コンクリート")
+RE_TEN_NONE = re.compile(r"^[\s\-－―ー—なし無]*$|なし|無し|^不明")
 RE_BUILDINGS = re.compile(r"(櫓|門|御殿|書院|多門)[^。]{0,20}(現存|復元|再建|復興)|(現存|復元|再建|復興)[^。]{0,12}(櫓|門|御殿)|重要文化財")
 RE_RUINS_NAME = re.compile(r"城跡|城址|城趾|館跡|陣屋跡|砦跡|館址")
+
+
+def castle_norm(name):
+    """OSM の城の名前を Wikipedia の記事名に寄せる（「史跡 小田原城址」「小田原城天守閣」→「小田原城」）。"""
+    n = re.sub(r"^(国指定)?史跡[\s　]*", "", name.strip())
+    n = re.sub(r"(城址|城跡|城趾)(公園)?$", "城", n)
+    n = re.sub(r"(大|小)?天守閣?$", "", n)
+    return norm_name(n)
 
 
 def castle_kind(name, w, op):
     title = w.get("title", "")
     ten = w.get("tenshu", "")
-    body = " ".join([ten, w.get("remains", ""), w.get("intro", ""), w.get("history", "")[:700]])
     if title in GENZON_TENSHU or re.search(r"現存", ten):
         return "現存天守"
-    if re.search(r"復元|復興|再建|模擬|再現", ten) or (RE_KEEP_REBUILT.search(body) and not RE_KEEP_NONE.search(body)):
+    body = " ".join([w.get("remains", ""), w.get("intro", ""), w.get("history", "")[:700]])
+    if ten and RE_TEN_REBUILT.search(ten):
         return "復元・再建天守"
-    if w and RE_BUILDINGS.search(body):
+    if not (ten and RE_TEN_NONE.search(ten)) and RE_KEEP_REBUILT.search(body) and not RE_KEEP_NONE.search(body):
+        return "復元・再建天守"
+    if not w and re.search(r"天守", name):  # 名前に「天守（閣）」とある点で、記事に結びつかないもの（関東に現存天守はない）
+        return "復元・再建天守"
+    if w and RE_BUILDINGS.search(" ".join([ten, body])):
         return "城跡（櫓・門などが残る）"
     if w or op.get("ruins") == "castle" or op.get("historic") == "ruins" or RE_RUINS_NAME.search(name):
         return "城跡（石垣・土塁・堀など）"
@@ -369,7 +383,7 @@ def build_castle(osm_c, wiki_c):
         if wp.startswith("ja:") and wp[3:] in by_title:
             w = by_title[wp[3:]]
         if w is None and name:
-            pn = norm_name(name)
+            pn = castle_norm(name)
             for cand in wiki_c:
                 if cand["lat"] is None:
                     continue
