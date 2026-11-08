@@ -20,7 +20,11 @@ ENDPOINTS = [
 QUERY = """
 [out:json][timeout:180];
 area["ISO3166-2"="JP-10"]->.a;
-nwr["amenity"="place_of_worship"]["religion"="shinto"](area.a);
+(
+  nwr["religion"="shinto"](area.a);
+  nwr["amenity"="place_of_worship"]["name"~"神社|神宮|八幡宮|稲荷|天満宮|大社|宮$"](area.a);
+  nwr["building"="shrine"](area.a);
+);
 out center tags;
 """
 OUT_DIR = os.path.join(os.path.dirname(__file__), "..", "site", "data")
