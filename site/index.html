@@ -69,6 +69,7 @@
   #legend .lg em { margin-left: auto; font-style: normal; color: #6b5d4a; }
   #legend .sec { margin-top: 5px; padding-top: 4px; border-top: 1px dotted #d8c9a8; color: #6b5d4a; }
   #legend.min #lgBody { display: none; }
+  body.popup #legend { display: none; }
   #viewBtn { border: 0; border-left: 1px solid #d8c9a8; background: #fff; color: var(--ink); padding: 0 13px; font-size: 14px; white-space: nowrap; }
   #listview { display: none; position: absolute; z-index: 950; inset: 0; background: var(--paper); overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 88px 12px 96px; box-sizing: border-box; }
   body.listmode #listview { display: block; } body.listmode #legend { display: none; }
@@ -391,6 +392,8 @@ function drawLegend() {
   h += '<div class="sec">薄い点＝Wikipedia に記事がなく、情報が少ない</div>';
   $('lgBody').innerHTML = h;
 }
+map.on('popupopen', () => document.body.classList.add('popup'));
+map.on('popupclose', () => document.body.classList.remove('popup'));
 $('lgHead').onclick = () => { const l = $('legend'); l.classList.toggle('min'); $('lgArrow').textContent = l.classList.contains('min') ? '▲' : '▼'; };
 
 // ---- 検索 ----
