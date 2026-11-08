@@ -152,6 +152,8 @@ def main():
                 "deity": deity,
                 "rank": score,
                 "rank_label": ((w or {}).get("rank", "") or rank_label)[:80],
+                "rank_src": "wikipedia" if (w or {}).get("rank") else ("auto" if rank_label else ""),
+                "osm_id": (osm_props or {}).get("id", ""),
                 "kind": kind,
                 "founded": (w or {}).get("founded", ""),
                 "founded_year": e_year,

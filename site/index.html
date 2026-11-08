@@ -54,6 +54,21 @@
   .ibtn { border: 1px solid #d8c9a8; background: #fff; border-radius: 12px; font-size: 12px; padding: 2px 8px; color: #1a56b0; }
   .kinfo { display: none; background: #fff; border-radius: 8px; padding: 8px 10px; margin: 4px 0 8px; font-size: 13px; }
   .kinfo.on { display: block; }
+  .na { color: #999; font-style: italic; }
+  .cf { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 8px; margin-left: 6px; vertical-align: middle; white-space: nowrap; }
+  .cf.ok { background: #dcefdc; color: #1b5e20; } .cf.est { background: #fff0c2; color: #7a5200; } .cf.chk { background: #fde0dc; color: #8c1d18; }
+  .leaflet-popup-content-wrapper { border-radius: 14px; background: var(--paper); }
+  .leaflet-popup-content { margin: 14px 16px 12px; min-width: 240px; }
+  .leaflet-container a.leaflet-popup-close-button { width: 36px; height: 36px; font-size: 26px; line-height: 34px; top: 2px; right: 2px; color: #6b5d4a; }
+  .card h3 { padding-right: 28px; }
+  .card .cfnote { font-size: 11px; color: #6b5d4a; margin-top: 6px; }
+  #legend { position: absolute; z-index: 900; left: 10px; top: 128px; width: 178px; max-height: 34vh; overflow-y: auto; background: #f5f0e6ee; border: 1px solid #d8c9a8; border-radius: 10px; padding: 6px 9px; font-size: 11.5px; line-height: 1.45; box-shadow: 0 1px 6px #0003; }
+  #legend h4 { margin: 0 0 3px; font-size: 12px; display: flex; justify-content: space-between; cursor: pointer; }
+  #legend .lg { display: flex; align-items: center; gap: 6px; margin: 1px 0; }
+  #legend .lg i { flex: 0 0 auto; width: 11px; height: 11px; border-radius: 50%; display: inline-block; border: 1px solid #fff; box-shadow: 0 0 0 1px #0002; }
+  #legend .lg em { margin-left: auto; font-style: normal; color: #6b5d4a; }
+  #legend .sec { margin-top: 5px; padding-top: 4px; border-top: 1px dotted #d8c9a8; color: #6b5d4a; }
+  #legend.min #lgBody { display: none; }
   .pp { color: #1a56b0; text-decoration: underline; cursor: pointer; margin-right: 8px; }
 </style>
 </head>
@@ -65,6 +80,7 @@
   </div>
   <div id="hint">読み込み中…</div>
 </div>
+<div id="legend"><h4 id="lgHead"><span>凡例</span><span id="lgArrow">▼</span></h4><div id="lgBody"></div></div>
 <datalist id="plist"></datalist>
 <div id="map"></div>
 
@@ -176,34 +192,77 @@ function kindInfoHtml(k) {
   return '<div><span class="l">祀る神</span> ' + esc(i.deity) + '</div><div><span class="l">総本社</span> ' + esc(i.head) + '</div><div>' + esc(i.note) + '</div>';
 }
 const eraColor = e => ERA_COLOR[e] || '#9e9e9e';
-const colorOf = k => kindColor[k] || (kindColor[k] = PALETTE[Object.keys(kindColor).length % PALETTE.length]);
+const GREY = '#9e9e9e';
+const colorOf = k => k === 'その他' ? GREY : kindColor[k] || (kindColor[k] = PALETTE[Object.keys(kindColor).length % PALETTE.length]);
 
 // ---- ポップアップ ----
+const NA = '<span class="na">情報なし</span>';
+const cf = (t, c) => '<span class="cf ' + c + '">' + t + '</span>';
 function popupHtml(p, lat, lon) {
-  let h = '<div class="card"><h3>' + esc(p.name) + '</h3>';
-  if (p.kind) h += '<span class="tag k">' + esc(p.kind) + '</span>';
-  if (p.rank_label) h += '<span class="tag r">' + esc(p.rank_label) + '</span>';
-  if (p.era) h += '<span class="tag" style="background:' + eraColor(p.era) + ';color:#fff">' + esc(p.era) + '時代の創建</span>';
+  const row = (k, v) => '<tr><th>' + k + '</th><td>' + v + '</td></tr>';
+  let h = '<div class="card"><h3>' + esc(p.name || '（名称不明）') + '</h3>';
   h += '<table>';
-  const row = (k, v) => v ? '<tr><th>' + k + '</th><td>' + esc(v) + '</td></tr>' : '';
-  const eraTxt = p.era ? p.era + '時代' + (p.founded_year ? '（' + p.founded_year + '年頃）' : '') + (p.era_note ? '・' + p.era_note : '') : '';
-  h += row('主祭神', p.deity) + row('社格', p.rank_label) + row('創建', p.founded) + row('創建の時代', eraTxt) + row('所在地', p.address);
+  // 社格：Wikipedia の記載ならそのまま、そうでなければ推定
+  h += row('社格', p.rank_label ? esc(p.rank_label) + (p.rank_src === 'wikipedia' ? cf('記載', 'ok') : cf('推定', 'est')) : NA);
+  // 系統：社名と祭神の文字から機械的に判定しているので、常に推定
+  h += row('系統', (p.kind && p.kind !== 'その他') ? esc(p.kind) + cf('推定', 'est') : NA);
+  // 創建時期
+  let founded = '';
+  if (p.founded || p.era) {
+    const eraTxt = p.era ? esc(p.era) + '時代' + (p.founded_year ? '（' + p.founded_year + '年頃）' : '') : '';
+    founded = (p.founded ? esc(p.founded) : '') + (p.founded && eraTxt ? '<br>' : '') + eraTxt;
+    founded += p.era_note ? cf('推定・要確認', 'chk') : (p.era ? cf('記載', 'ok') : cf('要確認', 'chk'));
+  }
+  h += row('創建時期', founded || NA);
+  h += row('祭神', p.deity ? esc(p.deity) + cf('記載', 'ok') : NA);
+  if (p.address) h += row('所在地', esc(p.address));
+  const osmUrl = p.osm_id ? 'https://www.openstreetmap.org/' + p.osm_id : 'https://www.openstreetmap.org/?mlat=' + lat + '&mlon=' + lon + '#map=18/' + lat + '/' + lon;
+  h += row('Wikipedia', p.wikipedia ? '<a target="_blank" rel="noopener" href="https://ja.wikipedia.org/wiki/' + encodeURIComponent(p.wikipedia) + '">' + esc(p.wikipedia) + '</a>' : NA);
+  h += row('OpenStreetMap', '<a target="_blank" rel="noopener" href="' + osmUrl + '">地図で見る</a>');
   if (p.website && /^(https?:\/\/)?[\w.-]+\.[a-z]{2,}/i.test(p.website)) {
     const u = /^https?:/.test(p.website) ? p.website : 'https://' + p.website;
-    h += '<tr><th>公式サイト</th><td><a target="_blank" rel="noopener" href="' + esc(u) + '">' + esc(p.website.slice(0, 40)) + '</a></td></tr>';
+    h += row('公式サイト', '<a target="_blank" rel="noopener" href="' + esc(u) + '">' + esc(p.website.slice(0, 40)) + '</a>');
   }
   h += '</table>';
   if (p.intro) h += '<p>' + esc(p.intro) + '</p>';
   if (p.persons && p.persons.length) h += '<p>ゆかりの人物：' + p.persons.map(x => '<span class="pp" data-p="' + esc(x) + '">' + esc(x) + '</span>').join('') + '</p>';
   if (p.history) h += '<details><summary>▶ 歴史・由来（Wikipedia）</summary><p>' + esc(p.history).replace(/\n/g, '<br>') + '</p></details>';
-  if (p.wikipedia) h += '<div class="src">出典：Wikipedia「' + esc(p.wikipedia) + '」(CC BY-SA)</div>';
   h += '<div class="links">';
-  if (p.wikipedia) h += '<a target="_blank" rel="noopener" href="https://ja.wikipedia.org/wiki/' + encodeURIComponent(p.wikipedia) + '">Wikipedia</a>';
   h += '<a target="_blank" rel="noopener" href="https://ndlsearch.ndl.go.jp/search?cs=bib&keyword=' + encodeURIComponent(p.name) + '">国立国会図書館</a>';
   h += '<a target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=' + lat + ',' + lon + '">Googleマップ</a>';
   if (p.wikidata) h += '<a target="_blank" rel="noopener" href="https://www.wikidata.org/wiki/' + esc(p.wikidata) + '">Wikidata</a>';
-  return h + '</div></div>';
+  h += '</div>';
+  if (p.wikipedia) h += '<div class="src">出典：Wikipedia「' + esc(p.wikipedia) + '」(CC BY-SA)</div>';
+  h += '<div class="cfnote">' + cf('記載', 'ok') + 'Wikipedia の記述　' + cf('推定', 'est') + '文字から機械的に判定　' + cf('要確認', 'chk') + '伝承などを含む</div>';
+  return h + '</div>';
 }
+
+// ---- 凡例 ----
+function drawLegend() {
+  let h = '';
+  if (colorBy === 'era') {
+    const cnt = {};
+    all.forEach(f => { const e = f.properties.era || ''; cnt[e] = (cnt[e] || 0) + 1; });
+    h += '<div><b>色＝創建の時代</b></div>';
+    ERA_INFO.forEach(([e]) => { if (cnt[e]) h += '<div class="lg"><i style="background:' + eraColor(e) + '"></i>' + e + '<em>' + cnt[e] + '</em></div>'; });
+    h += '<div class="lg"><i style="background:' + GREY + '"></i>灰色＝創建の時代が不明<em>' + (cnt[''] || 0) + '</em></div>';
+  } else {
+    const cnt = {};
+    all.forEach(f => cnt[f.properties.kind] = (cnt[f.properties.kind] || 0) + 1);
+    h += '<div><b>色＝系統</b>（社名・祭神から推定）</div>';
+    Object.entries(cnt).filter(([k]) => k !== 'その他').sort((a, b) => b[1] - a[1]).forEach(([k, n]) => {
+      h += '<div class="lg"><i style="background:' + colorOf(k) + '"></i>' + esc(k) + '<em>' + n + '</em></div>';
+    });
+    h += '<div class="lg"><i style="background:' + GREY + '"></i>灰色＝系統を判定できない<em>' + (cnt['その他'] || 0) + '</em></div>';
+  }
+  h += '<div class="sec"><b>大きさ＝社格</b>（大きいほど格が高い）<br>' +
+    '<span class="lg"><i style="width:8px;height:8px;background:#777"></i>小：社格の情報なし・郷社など</span>' +
+    '<span class="lg"><i style="width:12px;height:12px;background:#777"></i>中：式内社・県社など</span>' +
+    '<span class="lg"><i style="width:17px;height:17px;background:#777"></i>大：一宮・名神大社など</span></div>';
+  h += '<div class="sec">薄い点＝Wikipedia に記事がなく、情報が少ない神社</div>';
+  $('lgBody').innerHTML = h;
+}
+$('lgHead').onclick = () => { const l = $('legend'); l.classList.toggle('min'); $('lgArrow').textContent = l.classList.contains('min') ? '▲' : '▼'; };
 
 // ---- 検索 ----
 function expandTerms(q) {
@@ -240,7 +299,7 @@ function draw(fit) {
   list.slice().sort((a, b) => a.properties.rank - b.properties.rank).forEach(f => {
     const p = f.properties, [lon, lat] = f.geometry.coordinates;
     L.circleMarker([lat, lon], { radius: RADIUS[p.rank] || 3, color: '#fff', weight: 1, fillColor: colorBy === 'era' ? eraColor(p.era) : colorOf(p.kind), fillOpacity: p.rank >= 2 ? 0.9 : 0.55 })
-      .bindPopup(() => popupHtml(p, lat, lon), { maxWidth: 340, autoPanPadding: [20, 80] })
+      .bindPopup(() => popupHtml(p, lat, lon), { maxWidth: 360, minWidth: 250, autoPanPadding: [20, 90] })
       .bindTooltip(esc(p.name)).addTo(layer);
   });
   const qv = $('q').value.trim();
@@ -290,6 +349,7 @@ Promise.all([
     .map(([n, c]) => '<span data-p="' + esc(n) + '">' + esc(n) + '（' + c + '）</span>').join('');
   document.querySelectorAll('#personChips span').forEach(s => s.onclick = () => searchPerson(s.dataset.p));
   buildEraList(sum);
+  drawLegend();
   if (sum) $('stats').textContent = '収録 ' + sum.total + ' 社のうち、主祭神が分かるもの ' + sum.with_deity + ' 社、由来の文章があるもの ' + sum.with_history + ' 社、Wikipedia 記事があるもの ' + sum.wiki_articles + ' 社。更新日 ' + (sum.generated || '');
   draw(false);
 }).catch(() => { $('hint').textContent = 'データを読み込めませんでした'; });
@@ -311,7 +371,7 @@ function buildEraList(sum) {
     draw(!!activeEra);
   });
 }
-$('colorSel').onchange = () => { colorBy = $('colorSel').value; draw(false); };
+$('colorSel').onchange = () => { colorBy = $('colorSel').value; drawLegend(); draw(false); };
 $('showMap2').onclick = () => { setSheet(false); draw(true); };
 $('go').onclick = () => draw(true);
 $('q').addEventListener('keydown', e => { if (e.key === 'Enter') draw(true); });
