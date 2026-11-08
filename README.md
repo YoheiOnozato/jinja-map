@@ -1,15 +1,16 @@
 # 関東の神社マップ（試作）
 
-関東1都6県の神社を地図に表示するサイト。成功したら全国へ拡大する。
+関東1都6県の神社（丸）と古墳（四角）を地図に表示するサイト。成功したら全国へ拡大する。
 公開ページ: https://yoheionozato.github.io/jinja-map/
 
 ## データの出どころ
 
 | 項目 | 出どころ |
 | --- | --- |
-| 名称・位置 | OpenStreetMap（ODbL） |
-| 社格・祭神・創建・由来 | Wikipedia 日本語版の各神社の記事（CC BY-SA） |
-| 系統（八幡・稲荷など）・創建の時代・地図上の大きさ | 上記の文章から**機械的に推定**したもの |
+| 名称・位置（神社・古墳） | OpenStreetMap（ODbL） |
+| 神社の社格・祭神・創建・由来 | Wikipedia 日本語版の各神社の記事（CC BY-SA） |
+| 古墳の指定・築造時期・規模・被葬者・説明 | Wikipedia 日本語版の各古墳の記事（CC BY-SA） |
+| 系統（八幡・稲荷など）・墳形・創建の時代・地図上の大きさ | 上記の名称・文章から**機械的に推定**したもの |
 | 地図タイル | 国土地理院 |
 
 - 神社の情報の大半は自動で集めたもので、**誤りや抜けを含みます**。
@@ -27,8 +28,21 @@
 
 ## 仕組み（開発者向け）
 
-- `scripts/fetch_osm.py` … OpenStreetMap から神社を取得（都県ごと）
-- `scripts/fetch_wiki.py` … Wikipedia のカテゴリから記事を取得
-- `scripts/build_site_data.py` … 統合・社格/系統/時代の推定・`data/overrides.json` の適用 → `site/data/`
-- `.github/workflows/pages.yml` … 上記を実行して GitHub Pages に公開（push 時と毎週）
-- `data/overrides.json` … 確認済みの修正（キーは神社 ID）。書き方はファイル内の説明を参照
+データ作り（遅い）と公開（速い）を分けています。
+
+- `.github/workflows/data.yml`（build-data）… 毎週・手動・`scripts/` や `data/overrides.json` の変更時に動く。データを作って **`data` ブランチ**に保存する。
+  - `scripts/fetch_osm.py` … OpenStreetMap から神社・古墳を都県ごとに取得
+  - `scripts/fetch_wiki.py` … Wikipedia のカテゴリから神社・古墳の記事を取得
+  - `scripts/build_site_data.py` … 統合し、社格・系統・墳形・時代の推定、`data/overrides.json` の適用、近くの神社⇔古墳の紐付けをして書き出す
+- `.github/workflows/pages.yml`（build-and-deploy）… `site/` の変更時と、build-data の完了時に動く。`data` ブランチのデータを取り込んで GitHub Pages に公開する。画面だけの修正は数分で反映される。
+- データ形式を変えたときは、`scripts/build_site_data.py` の `DATA_VERSION` と `site/index.html` の `const DATA_VERSION` を同時に上げる（合わないと公開を見送り、build-data 完了後に自動で公開される）。
+
+### 地図用データの形
+
+全国でも動くよう、起動時に読むものは小さく、詳しい内容はタップした時に読みます。
+
+- `core_s.json`（神社）・`core_k.json`（古墳）… 名前・位置・社格・系統・時代・都県を**列ごとの配列**にしたもの。古墳は「古墳」のチェックを入れた時に初めて読み込む。
+- `detail_s/` `detail_k/` … 緯度経度 0.25° ごとの詳細（OSM の番号・祭神・由来・出典など）。ポップアップを開いた時に該当の区画だけ読む。
+- 画面は、見えている範囲だけを supercluster でまとめて描く。
+
+- `data/overrides.json` … 確認済みの修正（キーは神社・古墳の ID）。書き方はファイル内の説明を参照

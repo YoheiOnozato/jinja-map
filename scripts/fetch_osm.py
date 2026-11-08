@@ -29,11 +29,21 @@ area["ISO3166-2"="%s"]->.a;
 );
 out center tags;
 """
+KOFUN_QUERY = """
+[out:json][timeout:300];
+area["ISO3166-2"="%s"]->.a;
+(
+  nwr["historic"="archaeological_site"]["archaeological_site"="tumulus"](area.a);
+  nwr["historic"="tomb"]["tomb"="tumulus"](area.a);
+  nwr["historic"]["name"~"古墳|古墳群|塚古墳"](area.a);
+);
+out center tags;
+"""
 OUT_DIR = os.path.join(os.path.dirname(__file__), "..", "build")
 
 
-def fetch(iso):
-    body = urllib.parse.urlencode({"data": QUERY % iso}).encode()
+def fetch(iso, query=None):
+    body = urllib.parse.urlencode({"data": (query or QUERY) % iso}).encode()
     last = None
     for url in ENDPOINTS:
         for attempt in range(4):
@@ -72,12 +82,16 @@ def to_feature(el, pref=""):
             "wikipedia": tags.get("wikipedia", ""),
             "wikidata": tags.get("wikidata", ""),
             "website": tags.get("website", "") or tags.get("contact:website", ""),
+            "tumulus": tags.get("tumulus", ""),
+            "heritage": tags.get("heritage", "") or tags.get("designation", ""),
+            "start_date": tags.get("start_date", ""),
         },
     }
 
 
 def main():
     features, seen, stamp, per_pref = [], set(), "", {}
+    kofun, kseen, per_pref_kofun = [], set(), {}
     for iso, pname in PREFS:
         data = fetch(iso)
         stamp = data.get("osm3s", {}).get("timestamp_osm_base", "") or stamp
@@ -91,6 +105,17 @@ def main():
         per_pref[pname] = n
         print(pname, n, flush=True)
         time.sleep(8)
+        kd = fetch(iso, KOFUN_QUERY)
+        kn = 0
+        for e in kd.get("elements", []):
+            f = to_feature(e, pname)
+            if f and f["properties"]["id"] not in kseen:
+                kseen.add(f["properties"]["id"])
+                kofun.append(f)
+                kn += 1
+        per_pref_kofun[pname] = kn
+        print(pname, "古墳", kn, flush=True)
+        time.sleep(8)
     total = len(features)
     named = sum(1 for f in features if f["properties"]["name"])
     summary = {
@@ -101,10 +126,14 @@ def main():
         "with_wikidata": sum(1 for f in features if f["properties"]["wikidata"]),
         "osm_timestamp": stamp,
         "per_pref": per_pref,
+        "kofun_total": len(kofun),
+        "per_pref_kofun": per_pref_kofun,
     }
     os.makedirs(OUT_DIR, exist_ok=True)
     with open(os.path.join(OUT_DIR, "osm.geojson"), "w", encoding="utf-8") as fh:
         json.dump({"type": "FeatureCollection", "features": features}, fh, ensure_ascii=False)
+    with open(os.path.join(OUT_DIR, "osm_kofun.geojson"), "w", encoding="utf-8") as fh:
+        json.dump({"type": "FeatureCollection", "features": kofun}, fh, ensure_ascii=False)
     with open(os.path.join(OUT_DIR, "osm_summary.json"), "w", encoding="utf-8") as fh:
         json.dump(summary, fh, ensure_ascii=False, indent=2)
     print(json.dumps(summary, ensure_ascii=False, indent=2))

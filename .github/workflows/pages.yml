@@ -1,11 +1,16 @@
 name: build-and-deploy
 
+# 公開（速い）。data ブランチのデータを読み込んで、site/ と一緒に GitHub Pages へ出す。
 on:
   push:
     branches: [main]
+    paths:
+      - "site/**"
+      - ".github/workflows/pages.yml"
   workflow_dispatch:
-  schedule:
-    - cron: "0 18 * * 0"   # 毎週月曜 3:00 (JST) にデータ更新
+  workflow_run:
+    workflows: [build-data]
+    types: [completed]
 
 permissions:
   contents: read
@@ -18,21 +23,40 @@ concurrency:
 
 jobs:
   deploy:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - name: OpenStreetMap から神社を取得
-        run: python3 scripts/fetch_osm.py
-      - name: Wikipedia から神社の記事を取得
-        run: python3 scripts/fetch_wiki.py
-      - name: データを統合
-        run: python3 scripts/build_site_data.py
-      - uses: actions/configure-pages@v5
+      - name: data ブランチの有無と形式を確認
+        id: chk
+        run: |
+          want=$(grep -oP 'const DATA_VERSION = \K[0-9]+' site/index.html || echo 0)
+          if git ls-remote --exit-code --heads origin data >/dev/null 2>&1; then
+            git fetch -q --depth=1 origin data
+            have=$(git show FETCH_HEAD:version.txt 2>/dev/null || echo none)
+          else
+            have=none
+          fi
+          echo "画面が期待するデータ形式=$want / data ブランチ=$have"
+          if [ "$want" = "$have" ]; then echo "ok=true" >> "$GITHUB_OUTPUT"; else echo "ok=false" >> "$GITHUB_OUTPUT"; fi
+      - name: データを取り込み
+        if: steps.chk.outputs.ok == 'true'
+        run: |
+          mkdir -p site/data
+          git archive FETCH_HEAD | tar -x -C site/data
+      - name: 公開の準備
+        if: steps.chk.outputs.ok == 'true'
+        uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
+        if: steps.chk.outputs.ok == 'true'
         with:
           path: site
       - id: deployment
+        if: steps.chk.outputs.ok == 'true'
         uses: actions/deploy-pages@v4
+      - name: データ形式が合わないため公開を見送り
+        if: steps.chk.outputs.ok != 'true'
+        run: echo "data ブランチのデータが画面の形式と合っていません。build-data の完了後に自動で公開されます。"

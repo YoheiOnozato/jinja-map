@@ -1,0 +1,43 @@
+name: build-data
+
+# データ作り（時間がかかる）。画面だけの修正では動かず、毎週・手動・スクリプトや修正データの変更時だけ動く。
+# 作ったデータは data ブランチに置き、公開（pages.yml）はそれを読み込むだけにする。
+on:
+  schedule:
+    - cron: "0 18 * * 0"   # 毎週月曜 3:00 (JST)
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/**"
+      - "data/overrides.json"
+      - ".github/workflows/data.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-data
+  cancel-in-progress: false
+
+jobs:
+  data:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - name: OpenStreetMap から神社・古墳を取得
+        run: python3 scripts/fetch_osm.py
+      - name: Wikipedia から神社・古墳の記事を取得
+        run: python3 scripts/fetch_wiki.py
+      - name: データを統合
+        run: python3 scripts/build_site_data.py
+      - name: data ブランチに保存
+        run: |
+          cd site/data
+          git init -q -b data
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "data $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" data

@@ -1,7 +1,7 @@
 """OSM と Wikipedia のデータを統合して、地図ページ用の shrines.geojson を作る。
 
 入力: build/osm.geojson, build/wiki.json
-出力: site/data/shrines.geojson, site/data/summary.json
+出力: site/data/core_s.json (神社), core_k.json (古墳), detail_s/ detail_k/ (詳細), summary.json
 """
 import datetime
 import json
@@ -121,11 +121,241 @@ def norm_name(s):
     return re.sub(r"[\s（）()　]", "", s or "")
 
 
+DATA_VERSION = 2
+PREFS = ["茨城県", "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県"]
+CELL = 0.25  # 詳細ファイルの区画（度）
+
+# 古墳の墳形
+KOFUN_SHAPES = [
+    ("前方後方墳", ["前方後方"]),
+    ("前方後円墳", ["前方後円", "keyhole"]),
+    ("帆立貝形古墳", ["帆立貝"]),
+    ("上円下方墳", ["上円下方"]),
+    ("八角墳", ["八角"]),
+    ("円墳", ["円墳", "round", "circular"]),
+    ("方墳", ["方墳", "square"]),
+    ("横穴墓", ["横穴墓", "横穴群"]),
+    ("古墳群", ["古墳群", "塚群"]),
+]
+KOFUN_RANKS = [
+    (5, "国指定史跡", ["特別史跡", "国の史跡", "国指定史跡", "国史跡"]),
+    (4, "県指定史跡", ["県指定", "県史跡", "県の史跡"]),
+    (3, "市町村指定史跡", ["市指定", "町指定", "村指定", "市史跡", "町史跡", "村史跡", "市の史跡", "町の史跡", "村の史跡"]),
+]
+
+
+def kofun_shape(text):
+    for label, kws in KOFUN_SHAPES:
+        if any(k in text for k in kws):
+            return label
+    return "形不明"
+
+
+def kofun_period(text):
+    """築造時期の記述を拾う（見つからなければ空）。"""
+    m = re.search(r"(\d{1,2})世紀(初頭|前半|中頃|中葉|後半|末)?", text)
+    if m:
+        return m.group(1) + "世紀" + (m.group(2) or "")
+    m = re.search(r"(古墳時代)?(前期|中期|後期|終末期)", text)
+    if m:
+        return "古墳時代" + m.group(2)
+    return ""
+
+
+def kofun_size(text):
+    m = re.search(r"(墳丘長|全長|直径|一辺)\s*(約)?\s*(\d+(?:\.\d+)?)\s*(メートル|ｍ|m)", text)
+    return "%s約%sm" % (m.group(1), m.group(3)) if m else ""
+
+
+def build_kofun(osm_k, wiki_k):
+    by_title = {w["title"]: w for w in wiki_k}
+    for w in wiki_k:
+        w["_n"] = norm_name(w["name"])
+        w["_t"] = norm_name(w["title"])
+    used = set()
+    out = []
+
+    def make(name, lon, lat, w, op):
+        w = w or {}
+        op = op or {}
+        intro, history = w.get("intro", ""), w.get("history", "")
+        text = " ".join([name, w.get("shape", ""), intro, op.get("tumulus", ""), history[:300]])
+        shape = kofun_shape(w.get("shape", "") + " " + name + " " + op.get("tumulus", ""))
+        if shape == "形不明":
+            shape = kofun_shape(text)
+        # 指定: 情報欄の「指定」欄 → Wikipedia 本文 → OSM の heritage タグの順
+        des_text = (w.get("designation", "") or "") + " " + intro + " " + op.get("heritage", "")
+        score, label = 1, ""
+        for sc, lb, kws in KOFUN_RANKS:
+            if any(k in des_text for k in kws):
+                score, label = sc, lb
+                break
+        if score == 1 and w:
+            score = 2
+        rank_src = "wikipedia" if (w.get("designation") and label) else ("auto" if label else "")
+        built = w.get("built", "") or kofun_period(intro + " " + history)
+        size = w.get("size", "") or kofun_size(intro + " " + history)
+        persons = persons_in(" ".join([name, w.get("buried", ""), intro]))
+        return {
+            "geometry": {"coordinates": [lon, lat]},
+            "properties": {
+                "name": name, "deity": w.get("buried", ""), "rank": score, "rank_label": label, "rank_src": rank_src,
+                "osm_id": op.get("id", ""), "pref": op.get("pref", "") or w.get("pref", ""),
+                "kind": shape, "founded": built, "founded_year": None, "era": "古墳",
+                "era_note": "" if w.get("built") else "推定",
+                "address": w.get("address", ""), "website": op.get("website", ""),
+                "intro": intro[:300], "history": history[:900], "size": size,
+                "persons": persons, "people": [], "wikipedia": w.get("title", ""),
+                "wikidata": w.get("wikidata", "") or op.get("wikidata", ""),
+            },
+        }
+
+    for f in osm_k:
+        p = f["properties"]
+        lon, lat = f["geometry"]["coordinates"]
+        w = None
+        wp = p.get("wikipedia", "")
+        if wp.startswith("ja:") and wp[3:] in by_title:
+            w = by_title[wp[3:]]
+        if w is None and p.get("name"):
+            pn = norm_name(p["name"])
+            for cand in wiki_k:
+                if cand["title"] in used or cand["lat"] is None:
+                    continue
+                if (cand["_n"] == pn or cand["_t"] == pn) and haversine(lat, lon, cand["lat"], cand["lon"]) < 800:
+                    w = cand
+                    break
+        if w:
+            used.add(w["title"])
+        out.append(make(p.get("name") or (w or {}).get("name", "（名称不明の古墳）"), lon, lat, w, p))
+    added = 0
+    for w in wiki_k:
+        if w["title"] in used or w["lat"] is None or w["lon"] is None:
+            continue
+        out.append(make(w["name"], w["lon"], w["lat"], w, None))
+        added += 1
+    # 都県が空のものは最寄りの点から補う
+    pts = [(f["geometry"]["coordinates"][1], f["geometry"]["coordinates"][0], f["properties"]["pref"]) for f in out if f["properties"]["pref"]]
+    for f in out:
+        pr = f["properties"]
+        if pr["pref"]:
+            continue
+        for n_ in PREFS:
+            if n_ in (pr.get("address") or ""):
+                pr["pref"] = n_
+                break
+        if not pr["pref"] and pts:
+            lo, la = f["geometry"]["coordinates"]
+            pr["pref"] = min(pts, key=lambda t: (t[0] - la) ** 2 + (t[1] - lo) ** 2)[2]
+    stat = {"total": len(out), "osm": len(osm_k), "wiki_articles": len(wiki_k), "wiki_added": added,
+            "kind_dist": {}, "rank_dist": {}}
+    for f in out:
+        k = f["properties"]["kind"]
+        stat["kind_dist"][k] = stat["kind_dist"].get(k, 0) + 1
+        r = str(f["properties"]["rank"])
+        stat["rank_dist"][r] = stat["rank_dist"].get(r, 0) + 1
+    return out, stat
+
+
+def link_nearby(shrines, kofun):
+    """神社 ⇔ 古墳 の近接（150m 以内で最も近いもの）を props["nearby"] = [名前, 距離m] に記録する。"""
+    grid = {}
+    for f in kofun:
+        lo, la = f["geometry"]["coordinates"]
+        grid.setdefault((int(la / 0.003), int(lo / 0.003)), []).append(f)
+
+    def nearest(lo, la, cand_grid, limit=150):
+        best = None
+        gy, gx = int(la / 0.003), int(lo / 0.003)
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                for g in cand_grid.get((gy + dy, gx + dx), ()):
+                    glo, gla = g["geometry"]["coordinates"]
+                    d = haversine(la, lo, gla, glo)
+                    if d <= limit and (best is None or d < best[0]):
+                        best = (d, g)
+        return best
+
+    for f in shrines:
+        lo, la = f["geometry"]["coordinates"]
+        b = nearest(lo, la, grid)
+        if b:
+            f["properties"]["nearby"] = [b[1]["properties"]["name"], int(b[0])]
+    sgrid = {}
+    for f in shrines:
+        lo, la = f["geometry"]["coordinates"]
+        sgrid.setdefault((int(la / 0.003), int(lo / 0.003)), []).append(f)
+    for f in kofun:
+        lo, la = f["geometry"]["coordinates"]
+        b = nearest(lo, la, sgrid)
+        if b:
+            f["properties"]["nearby"] = [b[1]["properties"]["name"], int(b[0])]
+
+
+# 詳細ファイルの短い項目名
+DETAIL_KEYS = [
+    ("osm_id", "o"), ("rank_label", "rl"), ("rank_src", "rs"), ("deity", "d"), ("founded", "f"), ("founded_year", "fy"),
+    ("era_note", "en"), ("address", "a"), ("website", "w"), ("intro", "in"), ("history", "h"),
+    ("wikipedia", "wp"), ("wikidata", "wd"), ("verified", "vf"), ("size", "sz"), ("nearby", "nb"),
+]
+
+
+def write_layer(core_name, detail_sub, feats):
+    """列ごとの配列にした軽い本体(core)と、0.25° 区画ごとの詳細ファイルを書く。戻り値は詳細ファイル数。"""
+    kinds = [k for k, _ in sorted(((k, sum(1 for f in feats if f["properties"]["kind"] == k)) for k in {f["properties"]["kind"] for f in feats}), key=lambda t: -t[1])]
+    kidx = {k: i for i, k in enumerate(kinds)}
+    eidx = {e: i + 1 for i, e in enumerate(ERA_NAMES)}
+    pidx = {p: i + 1 for i, p in enumerate(PREFS)}
+    core = {"v": DATA_VERSION, "kinds": kinds, "eras": ERA_NAMES, "prefs": PREFS, "cell": CELL,
+            "n": [], "x": [], "y": [], "r": [], "k": [], "e": [], "p": [], "pp": {}}
+    cells = {}
+    for i, f in enumerate(feats):
+        pr = f["properties"]
+        lo, la = f["geometry"]["coordinates"]
+        xi, yi = int(round(lo * 1e5)), int(round(la * 1e5))
+        core["n"].append(pr["name"])
+        core["x"].append(xi)
+        core["y"].append(yi)
+        core["r"].append(pr["rank"])
+        core["k"].append(kidx[pr["kind"]])
+        core["e"].append(eidx.get(pr.get("era") or "", 0))
+        core["p"].append(pidx.get(pr.get("pref") or "", 0))
+        if pr.get("persons") or pr.get("people"):
+            core["pp"][str(i)] = [pr.get("persons") or [], pr.get("people") or []]
+        rec = {}
+        for long_k, short_k in DETAIL_KEYS:
+            v = pr.get(long_k)
+            if v not in (None, "", [], 0):
+                rec[short_k] = v
+        # 画面側と同じ計算（丸めた座標から区画を決める）
+        cell = "%d_%d" % (math.floor(yi / 1e5 / CELL), math.floor(xi / 1e5 / CELL))
+        if rec:
+            cells.setdefault(cell, {})[str(i)] = rec
+    with open(os.path.join(OUT_DIR, core_name), "w", encoding="utf-8") as fh:
+        json.dump(core, fh, ensure_ascii=False, separators=(",", ":"))
+    dd = os.path.join(OUT_DIR, detail_sub)
+    os.makedirs(dd, exist_ok=True)
+    for cell, d in cells.items():
+        with open(os.path.join(dd, cell + ".json"), "w", encoding="utf-8") as fh:
+            json.dump(d, fh, ensure_ascii=False, separators=(",", ":"))
+    return len(cells)
+
+
 def main():
     with open(os.path.join(BASE, "build", "osm.geojson"), encoding="utf-8") as fh:
         osm = json.load(fh)["features"]
     with open(os.path.join(BASE, "build", "wiki.json"), encoding="utf-8") as fh:
         wiki = json.load(fh)
+
+    def load_opt(name, key=None):
+        path = os.path.join(BASE, "build", name)
+        if not os.path.exists(path):
+            return []
+        with open(path, encoding="utf-8") as fh:
+            d = json.load(fh)
+        return d[key] if key else d
+    osm_k = load_opt("osm_kofun.geojson", "features")
+    wiki_k = load_opt("wiki_kofun.json")
 
     by_title = {w["title"]: w for w in wiki}
     for w_ in wiki:
@@ -270,38 +500,27 @@ def main():
     for f in features:
         k = str(f["properties"]["rank"])
         summary["rank_dist"][k] = summary["rank_dist"].get(k, 0) + 1
-    # 軽量化: 長い文章(intro/history)は地図用データから外し、緯度経度 0.25° ごとの詳細ファイルに分ける。
-    # 地図は起動時に軽い方だけ読み込み、神社をタップした時に該当エリアの詳細を取りに行く。
+    # ---- 古墳 ----
+    kofun_features, kstat = build_kofun(osm_k, wiki_k)
+    summary["kofun"] = kstat
+
+    # ---- 近くの神社・古墳（150m 以内で最も近いもの）をお互いに記録 ----
+    link_nearby(features, kofun_features)
+
+    # ---- 書き出し：地図用の軽いデータ(列ごとの配列)と、タップ時に読む詳細ファイル ----
     os.makedirs(OUT_DIR, exist_ok=True)
-    detail_dir = os.path.join(OUT_DIR, "detail")
-    if os.path.isdir(detail_dir):
-        for fn in os.listdir(detail_dir):
-            os.remove(os.path.join(detail_dir, fn))
-    os.makedirs(detail_dir, exist_ok=True)
-    cells = {}
-    for i, f in enumerate(features):
-        pr = f["properties"]
-        lon, lat = f["geometry"]["coordinates"]
-        cell = "%d_%d" % (math.floor(lat / 0.25), math.floor(lon / 0.25))
-        pr["i"] = i
-        pr["c"] = cell
-        intro, hist = pr.pop("intro", ""), pr.pop("history", "")
-        pr.pop("links", None)
-        if intro or hist:
-            pr["hd"] = 1
-            cells.setdefault(cell, {})[str(i)] = {"intro": intro, "history": hist}
-    for cell, d in cells.items():
-        with open(os.path.join(detail_dir, cell + ".json"), "w", encoding="utf-8") as fh:
-            json.dump(d, fh, ensure_ascii=False, separators=(",", ":"))
-    for f in features:
-        pr = f["properties"]
-        for k in [k for k, v in pr.items() if v in ("", [], None)]:
-            del pr[k]
-        f["geometry"]["coordinates"] = [round(c, 5) for c in f["geometry"]["coordinates"]]
-    summary["detail_files"] = len(cells)
-    with open(os.path.join(OUT_DIR, "shrines.geojson"), "w", encoding="utf-8") as fh:
-        json.dump({"type": "FeatureCollection", "features": features}, fh, ensure_ascii=False, separators=(",", ":"))
-    print("lite geojson bytes:", os.path.getsize(os.path.join(OUT_DIR, "shrines.geojson")))
+    for sub in ("detail_s", "detail_k"):
+        d = os.path.join(OUT_DIR, sub)
+        if os.path.isdir(d):
+            for fn in os.listdir(d):
+                os.remove(os.path.join(d, fn))
+    n_s = write_layer("core_s.json", "detail_s", features)
+    n_k = write_layer("core_k.json", "detail_k", kofun_features)
+    summary["detail_files"] = n_s + n_k
+    with open(os.path.join(OUT_DIR, "version.txt"), "w") as fh:
+        fh.write(str(DATA_VERSION))
+    for fn in ("core_s.json", "core_k.json"):
+        print(fn, "bytes:", os.path.getsize(os.path.join(OUT_DIR, fn)))
     with open(os.path.join(OUT_DIR, "persons.json"), "w", encoding="utf-8") as fh:
         json.dump(PERSONS, fh, ensure_ascii=False)
     with open(os.path.join(OUT_DIR, "summary.json"), "w", encoding="utf-8") as fh:

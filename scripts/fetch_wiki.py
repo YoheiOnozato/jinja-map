@@ -20,6 +20,8 @@ ROOTS = [("Category:%sの神社" % n, n) for n in PREF_NAMES] + [("Category:群�
     ("Category:%s" % c, "") for c in (
         "常陸国の式内社 下野国の式内社 上野国の式内社 武蔵国の式内社 相模国の式内社 上総国の式内社 下総国の式内社 安房国の式内社 "
         "常陸国一宮 下野国一宮 上野国一宮 武蔵国一宮 相模国一宮 上総国一宮 下総国一宮 安房国一宮").split()]
+KOFUN_ROOTS = [("Category:%sの古墳" % n, n) for n in PREF_NAMES] + [
+    ("Category:%s" % c, "") for c in ("常陸国の古墳 下野国の古墳 上野国の古墳 武蔵国の古墳 相模国の古墳 上総国の古墳 下総国の古墳 安房国の古墳").split()]
 MAX_DEPTH = 3
 OUT = os.path.join(os.path.dirname(__file__), "..", "build", "wiki.json")
 HISTORY_HEADS = ("歴史", "由緒", "由来", "沿革", "歴史・由緒", "歴史と由緒", "縁起", "概要")
@@ -39,10 +41,10 @@ def call(params):
     raise SystemExit("Wikipedia API 失敗")
 
 
-def category_pages():
+def category_pages(roots=None):
     """カテゴリを再帰的にたどり、記事（標準名前空間）のタイトル集合を返す。"""
     seen_cats, titles = set(), {}
-    queue = [(r, 0, pf) for r, pf in ROOTS]
+    queue = [(r, 0, pf) for r, pf in (roots or ROOTS)]
     while queue:
         cat, depth, pf = queue.pop(0)
         if cat in seen_cats:
@@ -157,6 +159,39 @@ def digest(title, a):
     }
 
 
+def digest_kofun(title, a):
+    tpl, info = find_infobox(a["wikitext"])
+    sections = split_sections(a["wikitext"])
+    intro = clean(sections[0][1])
+    history = ""
+    for head, body in sections[1:]:
+        if any(head == h or head.startswith(h) for h in HISTORY_HEADS + ("概要", "墳丘", "被葬者", "発掘")):
+            history += clean(body) + "\n"
+            if len(history) > 1500:
+                break
+    # 情報欄の項目名は記事ごとに揺れるので、キーワードで拾う
+    cleaned = {k: clean(v)[:120] for k, v in info.items() if clean(v)}
+
+    def find(*words):
+        for k, v in cleaned.items():
+            if any(w in k for w in words):
+                return v
+        return ""
+
+    return {
+        "title": title, "lat": a["lat"], "lon": a["lon"], "wikidata": a["wikidata"],
+        "template": tpl, "info_keys": sorted(info.keys()),
+        "name": find("名称", "名前") or title,
+        "shape": find("形状", "形式", "墳形", "種類"),
+        "size": find("規模", "墳丘長", "全長", "直径"),
+        "built": find("築造", "時期", "年代"),
+        "buried": find("被葬者", "埋葬"),
+        "designation": find("指定", "史跡"),
+        "address": find("所在地", "住所"),
+        "intro": intro[:400], "history": history.strip()[:1500],
+    }
+
+
 def main():
     tpref, cats = category_pages()
     titles = sorted(tpref)
@@ -187,6 +222,23 @@ def main():
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, "w", encoding="utf-8") as fh:
         json.dump(items, fh, ensure_ascii=False)
+
+    # ---- 古墳 ----
+    kpref, kcats = category_pages(KOFUN_ROOTS)
+    ktitles = sorted(kpref)
+    print(f"古墳: カテゴリ {len(kcats)} 件 / 記事 {len(ktitles)} 件")
+    karts = fetch_articles(ktitles)
+    kitems = []
+    for t, a in karts.items():
+        d = digest_kofun(t, a)
+        d["pref"] = kpref.get(t, "")
+        # 古墳の記事だけ残す（カテゴリには博物館や人物なども混じるため）
+        if "古墳" in t or "古墳" in d["intro"][:200] or "塚" in t or d["shape"]:
+            kitems.append(d)
+    print("古墳の記事:", len(kitems), "座標あり:", sum(1 for x in kitems if x["lat"] is not None),
+          "情報欄の項目の例:", next((x["info_keys"] for x in kitems if x["info_keys"]), []))
+    with open(os.path.join(os.path.dirname(OUT), "wiki_kofun.json"), "w", encoding="utf-8") as fh:
+        json.dump(kitems, fh, ensure_ascii=False)
 
 
 if __name__ == "__main__":
