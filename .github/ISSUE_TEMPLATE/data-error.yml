@@ -1,0 +1,33 @@
+name: データの誤りを報告
+description: 神社マップの情報（社格・系統・祭神・創建時期など）の間違いを知らせる
+title: "[誤り報告] "
+labels: ["data-error"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ご協力ありがとうございます。このサイトの情報の多くは Wikipedia と OpenStreetMap から自動で集めたもので、誤りを含むことがあります。
+  - type: input
+    id: shrine
+    attributes:
+      label: 神社名・ID
+      description: 地図のポップアップから開いた場合は自動で入ります。
+    validations:
+      required: true
+  - type: dropdown
+    id: field
+    attributes:
+      label: 間違っている項目
+      multiple: true
+      options: [名称, 位置, 社格, 系統, 創建時期, 祭神, 由来・説明, その他]
+  - type: textarea
+    id: correct
+    attributes:
+      label: 正しい内容
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: 根拠（URL・書籍名など）
+      description: 神社の公式サイト、自治体、神社庁、Wikipedia などがあると確認しやすくなります。

@@ -262,6 +262,7 @@ const colorOf = k => k === 'その他' ? GREY : kindColor[k] || (kindColor[k] = 
 // ---- ポップアップ ----
 // 修正提案用 Googleフォームの URL。空のままなら「修正を提案」ボタンは出ません。
 const FORM_URL = '';
+const ISSUE_URL = 'https://github.com/YoheiOnozato/jinja-map/issues/new';
 const NA = '<span class="na">情報なし</span>';
 const cf = (t, c) => '<span class="cf ' + c + '">' + t + '</span>';
 function popupHtml(p, lat, lon) {
@@ -270,18 +271,18 @@ function popupHtml(p, lat, lon) {
   let h = '<div class="card"><h3>' + esc(p.name || '（名称不明）') + '</h3>';
   h += '<table>';
   // 社格：Wikipedia の記載ならそのまま、そうでなければ推定
-  h += row('社格', p.rank_label ? esc(p.rank_label) + (vf('rank_label') ? cf('確認済み', 'vf') : p.rank_src === 'wikipedia' ? cf('記載', 'ok') : cf('推定', 'est')) : NA);
+  h += row('社格', p.rank_label ? esc(p.rank_label) + (vf('rank_label') ? cf('確認済み', 'vf') : p.rank_src === 'wikipedia' ? cf('Wikipedia', 'ok') : cf('自動推定', 'est')) : NA);
   // 系統：社名と祭神の文字から機械的に判定しているので、常に推定
-  h += row('系統', (p.kind && p.kind !== 'その他') ? esc(p.kind) + (vf('kind') ? cf('確認済み', 'vf') : cf('推定', 'est')) : NA);
+  h += row('系統', (p.kind && p.kind !== 'その他') ? esc(p.kind) + (vf('kind') ? cf('確認済み', 'vf') : cf('自動推定', 'est')) : NA);
   // 創建時期
   let founded = '';
   if (p.founded || p.era) {
     const eraTxt = p.era ? esc(p.era) + '時代' + (p.founded_year ? '（' + p.founded_year + '年頃）' : '') : '';
     founded = (p.founded ? esc(p.founded) : '') + (p.founded && eraTxt ? '<br>' : '') + eraTxt;
-    founded += (vf('founded') || vf('era')) ? cf('確認済み', 'vf') : p.era_note ? cf('推定・要確認', 'chk') : (p.era ? cf('記載', 'ok') : cf('要確認', 'chk'));
+    founded += (vf('founded') || vf('era')) ? cf('確認済み', 'vf') : p.era_note ? cf('推定・要確認', 'chk') : (p.era ? cf('Wikipedia', 'ok') : cf('要確認', 'chk'));
   }
   h += row('創建時期', founded || NA);
-  h += row('祭神', p.deity ? esc(p.deity) + (vf('deity') ? cf('確認済み', 'vf') : cf('記載', 'ok')) : NA);
+  h += row('祭神', p.deity ? esc(p.deity) + (vf('deity') ? cf('確認済み', 'vf') : cf('Wikipedia', 'ok')) : NA);
   if (p.address) h += row('所在地', esc(p.address));
   if (p._d != null && near) h += row('距離', fmtD(p._d) + '（' + esc(near.label) + 'から）');
   const osmUrl = p.osm_id ? 'https://www.openstreetmap.org/' + p.osm_id : 'https://www.openstreetmap.org/?mlat=' + lat + '&mlon=' + lon + '#map=18/' + lat + '/' + lon;
@@ -300,9 +301,16 @@ function popupHtml(p, lat, lon) {
   h += '<a target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=' + lat + ',' + lon + '">Googleマップ</a>';
   if (p.wikidata) h += '<a target="_blank" rel="noopener" href="https://www.wikidata.org/wiki/' + esc(p.wikidata) + '">Wikidata</a>';
   h += '</div>';
-  if (p.wikipedia) h += '<div class="src">出典：Wikipedia「' + esc(p.wikipedia) + '」(CC BY-SA)</div>';
-  if (FORM_URL) h += '<a class="sug" href="#" data-sug="' + esc((p.name || '') + '（ID: ' + (p.osm_id || ('wikipedia:' + (p.wikipedia || ''))) + '）') + '">✎ この神社の情報を修正提案する</a>';
-  h += '<div class="cfnote">' + cf('記載', 'ok') + 'Wikipedia の記述　' + cf('推定', 'est') + '文字から機械的に判定　' + cf('要確認', 'chk') + '伝承などを含む　' + cf('確認済み', 'vf') + '運営が確認</div>';
+  const srcs = [];
+  srcs.push('名称・位置：' + (p.osm_id ? 'OpenStreetMap' : 'Wikipedia'));
+  if (p.wikipedia) srcs.push('社格・祭神・創建・由来：Wikipedia「' + esc(p.wikipedia) + '」(CC BY-SA)');
+  srcs.push('系統・時代：上の文章から自動で推定');
+  if (p.verified && p.verified.length) srcs.push('確認済み：運営が確認した項目');
+  h += '<div class="src"><b>情報の出どころ</b><br>' + srcs.join('<br>') + '</div>';
+  h += '<div class="cfnote">⚠ この情報は Wikipedia と OpenStreetMap から<b>自動で集めた</b>もので、誤りを含むことがあります。' + cf('Wikipedia', 'ok') + '記事の記述　' + cf('自動推定', 'est') + '機械判定　' + cf('要確認', 'chk') + '伝承などを含む　' + cf('確認済み', 'vf') + '運営が確認</div>';
+  const sid = (p.osm_id || ('wikipedia:' + (p.wikipedia || ''))), sname = (p.name || '') + '（ID: ' + sid + '）';
+  h += '<a class="sug" target="_blank" rel="noopener" href="' + ISSUE_URL + '?template=data-error.yml&title=' + encodeURIComponent('[誤り報告] ' + (p.name || sid)) + '&shrine=' + encodeURIComponent(sname) + '">⚑ 情報の誤りを報告（GitHub）</a>';
+  if (FORM_URL) h += '<a class="sug" href="#" data-sug="' + esc(sname) + '">✎ GitHub を使わず報告（フォーム）</a>';
   return h + '</div>';
 }
 
