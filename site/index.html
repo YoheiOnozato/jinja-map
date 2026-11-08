@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>関東の神社マップ ― 社格・系統・由来</title>
+<title>関東の神社・古墳・城マップ ― 社格・系統・由来</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
   :root { --red: #b3261e; --paper: #f5f0e6; --ink: #2b2118; }
@@ -100,6 +100,7 @@
   .lyr { border: 1px solid #d8c9a8; background: var(--paper); color: #6b5d4a; border-radius: 16px; padding: 6px 13px; font-size: 14px; box-shadow: 0 1px 4px #0003; }
   .lyr.on { background: var(--red); border-color: var(--red); color: #fff; font-weight: bold; }
   .lyr em { font-style: normal; font-size: 11px; opacity: .85; margin-left: 4px; }
+  .tri i { display: block; clip-path: polygon(50% 0, 100% 100%, 0 100%); box-shadow: none; }
   .kf i { display: block; border: 2px solid #fff; box-shadow: 0 0 0 1px #0004; box-sizing: border-box; }
   .sug { display: block; margin-top: 8px; padding: 9px; text-align: center; border-radius: 8px; background: #fff; border: 1px solid #c9b88f; color: #6b4a1a; font-weight: bold; }
   .pp { color: #1a56b0; text-decoration: underline; cursor: pointer; margin-right: 8px; }
@@ -113,7 +114,7 @@
     <button id="viewBtn">☰ リスト</button>
   </div>
   <div id="hint">読み込み中…</div>
-  <div id="layers"><button class="lyr on" data-l="s">● 神社<em id="cntS"></em></button><button class="lyr" data-l="k">■ 古墳<em id="cntK"></em></button></div>
+  <div id="layers"><button class="lyr on" data-l="s">● 神社<em id="cntS"></em></button><button class="lyr" data-l="k">■ 古墳<em id="cntK"></em></button><button class="lyr" data-l="c">▲ 城<em id="cntC"></em></button></div>
 </div>
 <div id="legend"><h4 id="lgHead"><span>凡例</span><span id="lgArrow">▼</span></h4><div id="lgBody"></div></div>
 <datalist id="plist"></datalist>
@@ -125,7 +126,7 @@
 <div id="sheet" class="closed">
   <div id="handle">
     <div class="mark">社</div>
-    <div class="t"><b>関東の神社マップ</b><span id="sub">読み込み中…</span></div>
+    <div class="t"><b>関東の神社・古墳・城マップ</b><span id="sub">読み込み中…</span></div>
     <div class="arrow" id="arrow">▲</div>
   </div>
   <div id="tabs">
@@ -158,7 +159,7 @@
       <div class="stick"><span class="cnt" id="fCount"></span><button class="btn ghost" id="resetBtn">リセット</button><button class="btn" id="showMap1">地図を見る</button></div>
     </div>
     <div class="pane" id="p-name">
-      <p>神社・古墳の名前の一部を入れると、一致するものだけを地図（またはリスト）に表示します。都県・社格・系統などの絞り込みも同時に効きます。</p>
+      <p>神社・古墳・城の名前の一部を入れると、一致するものだけを地図（またはリスト）に表示します。都県・社格・系統などの絞り込みも同時に効きます。</p>
       <input type="text" id="nameQ" placeholder="例：赤城、八幡、二子山" enterkeyhint="search">
       <div id="nameHit" style="font-weight:bold;margin:2px 0 6px"></div>
       <div id="nameList"></div>
@@ -201,10 +202,10 @@
     </div>
     <div class="pane" id="p-about">
       <p><b>データについて</b></p>
-      <p>神社・古墳の位置・名前は <a href="https://www.openstreetmap.org/">OpenStreetMap</a>、主祭神・社格・創建・由来、古墳の指定・築造時期・被葬者は <a href="https://ja.wikipedia.org/">Wikipedia</a> から自動で集めています。社格・系統・創建の時代・人物は文章から機械的に読み取ったもので、誤りを含むことがあります。創建の時代は伝承を含みます。</p>
+      <p>神社・古墳の位置・名前は <a href="https://www.openstreetmap.org/">OpenStreetMap</a>、主祭神・社格・創建・由来、古墳・城の指定・築造（築城）時期・被葬者（城主）は <a href="https://ja.wikipedia.org/">Wikipedia</a> から自動で集めています。社格・系統・創建の時代・人物は文章から機械的に読み取ったもので、誤りを含むことがあります。創建の時代は伝承を含みます。</p>
       <p id="stats" class="small"></p>
-      <p class="small">地図：国土地理院 ／ 神社・古墳データ：© OpenStreetMap contributors (ODbL)、Wikipedia (CC BY-SA)。情報のない神社・古墳は灰色や小さな点で表示します。</p>
-      <p class="small">神社（丸）と古墳（四角）の位置・社格・系統・由来・時代を一か所で調べられる、総合サイトを目指しています。画面上の「神社」「古墳」で表示を切り替えられます。いまは試作版（関東1都6県）です。</p>
+      <p class="small">地図：国土地理院 ／ 神社・古墳・城データ：© OpenStreetMap contributors (ODbL)、Wikipedia (CC BY-SA)。情報のない神社・古墳・城は灰色や小さな点で表示します。</p>
+      <p class="small">神社（丸）・古墳（四角）・城（三角）の位置・社格・系統・由来・時代を一か所で調べられる、総合サイトを目指しています。画面上の「神社」「古墳」「城」で表示を切り替えられます。いまは試作版（関東1都6県）です。</p>
     </div>
   </div>
 </div>
@@ -221,14 +222,17 @@ L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const DATA_VERSION = 2;
-const layersOn = { s: true, k: false };
-let allS = [], allK = [], kLoaded = false, sumG = null;
+const layersOn = { s: true, k: false, c: false };
+let allS = [], allK = [], allC = [], kLoaded = false, cLoaded = false, sumG = null;
+const LAYER_NAME = { s: '', k: '古墳', c: '城' }, DETAIL_DIR = { s: 'detail_s', k: 'detail_k', c: 'detail_c' };
 const KOFUN_COLOR = { '前方後円墳': '#6d4c41', '前方後方墳': '#a1887f', '円墳': '#00897b', '方墳': '#3949ab', '帆立貝形古墳': '#c0712a',
-  '上円下方墳': '#8e24aa', '八角墳': '#d81b60', '横穴墓': '#546e7a', '古墳群': '#7cb342' };
+  '上円下方墳': '#8e24aa', '八角墳': '#d81b60', '横穴墓': '#546e7a', '古墳群': '#7cb342',
+  '現存天守': '#c62828', '復元・再建天守': '#f57c00', '城跡（櫓・門などが残る）': '#5e35b1', '城跡（石垣・土塁・堀など）': '#607d8b' };
 const RANK_NAME_S = { 6: '一宮・二十二社', 5: '名神大社・官幣大社級', 4: '別表神社級', 3: '式内社・県社級', 2: '郷社・村社級／記事あり' };
 const RANK_NAME_K = { 5: '国指定史跡', 4: '県指定史跡', 3: '市町村指定史跡', 2: 'Wikipedia に記事あり' };
-const isUnk = k => k === 'その他' || k === '形不明';
-const rankName = p => p.rank_label || (p.t === 'k' ? RANK_NAME_K : RANK_NAME_S)[p.rank] || '';
+const RANK_NAME_C = { 5: '国指定史跡・日本100名城・現存天守', 4: '県指定史跡', 3: '市町村指定史跡', 2: 'Wikipedia に記事あり' };
+const isUnk = k => k === 'その他' || k === '形不明' || k === '区分不明';
+const rankName = p => p.rank_label || ({ s: RANK_NAME_S, k: RANK_NAME_K, c: RANK_NAME_C })[p.t][p.rank] || '';
 const RADIUS = {1: 3, 2: 5, 3: 6, 4: 8, 5: 11, 6: 14};
 const PALETTE = ['#e6194b','#3cb44b','#4363d8','#f58231','#911eb4','#46a3a3','#c1a300','#8c564b','#e377c2','#17becf','#7f7f7f','#bcbd22','#1f77b4','#d62728','#2ca02c','#9467bd','#ff7f0e','#555'];
 const kindColor = {};
@@ -268,6 +272,11 @@ const KIND_INFO = {
   '八角墳': { t: 'k', deity: '八角形の墳丘。', head: '各地の天皇・皇族級の墓とされる例', note: '7世紀中ごろ以降に現れる形。', l1: '特徴', l2: '代表例' },
   '横穴墓': { t: 'k', deity: '丘や崖の斜面に横から穴を掘って造った墓。', head: '各地の横穴墓群', note: '古墳時代の後期に、墳丘を築かない墓として広まった。', l1: '特徴', l2: '代表例' },
   '古墳群': { t: 'k', deity: '複数の古墳がまとまってある場所。', head: '保渡田古墳群（群馬県）など', note: '一つの地域の有力者が、世代を重ねて築いたとされる。', l1: '特徴', l2: '代表例' },
+  '現存天守': { t: 'c', deity: '江戸時代以前に建てられた天守が、今も残っている城。全国に12城だけ。', head: '姫路城・松本城・犬山城・彦根城・松江城・弘前城・丸岡城・備中松山城・丸亀城・松山城・宇和島城・高知城', note: '関東地方には現存天守はありません。', l1: '特徴', l2: '全国の現存天守' },
+  '復元・再建天守': { t: 'c', deity: '一度失われた天守を、図面や記録をもとに建て直したもの（鉄筋コンクリート造が多い）。史実と違う「模擬天守」も、ここに含めています。', head: '小田原城（神奈川県）など', note: '木造で復元した例もあります。天守が実際にあったかどうかは城ごとに異なります。', l1: '特徴', l2: '関東の例' },
+  '城跡（櫓・門などが残る）': { t: 'c', deity: '天守はないが、櫓・門・御殿などが現存または復元されている城跡。', head: '各地の城跡公園など', note: '文章から機械的に判定しています。', l1: '特徴', l2: '例' },
+  '城跡（石垣・土塁・堀など）': { t: 'c', deity: '建物は残っておらず、石垣・土塁・堀・曲輪（くるわ）などの地形が残る城跡。', head: '各地の山城・平城の跡', note: '建物がない城跡は、遺構の残り方が城ごとに大きく違います。', l1: '特徴', l2: '例' },
+  '区分不明': { t: 'c', deity: '名称や説明から、天守や遺構の有無を判定できなかった城。', head: '（判定できないもの）', note: '分かる方は「誤りを報告」から教えてください。', l1: '特徴', l2: '例' },
   '形不明': { t: 'k', deity: '名称や説明から形を判定できなかった古墳。', head: '（判定できないもの）', note: '情報が少ない古墳です。分かる方は「誤りを報告」から教えてください。', l1: '特徴', l2: '代表例' },
   'その他': { deity: '地域の神・氏神など', head: '（系統を特定できないもの）', note: '地域の鎮守や氏神として祀られた神社、社名や祭神の記述から系統を判定できなかった神社。' }
 };
@@ -286,9 +295,9 @@ const ISSUE_URL = 'https://github.com/YoheiOnozato/jinja-map/issues/new';
 const NA = '<span class="na">情報なし</span>';
 const cf = (t, c) => '<span class="cf ' + c + '">' + t + '</span>';
 function popupHtml(p, lat, lon) {
-  const K = p.t === 'k';
+  const K = p.t === 'k', C = p.t === 'c';
   if (!p._dl) return '<div class="card"><h3>' + esc(p.name || '（名称不明）') + '</h3><p class="small">詳細を読み込み中…</p></div>';
-  const L = K ? { rank: '指定', kind: '墳形', founded: '築造時期', deity: '被葬者' } : { rank: '社格', kind: '系統', founded: '創建時期', deity: '祭神' };
+  const L = C ? { rank: '指定・名城', kind: '区分', founded: '築城', deity: '主な城主' } : K ? { rank: '指定', kind: '墳形', founded: '築造時期', deity: '被葬者' } : { rank: '社格', kind: '系統', founded: '創建時期', deity: '祭神' };
   const row = (k, v) => '<tr><th>' + k + '</th><td>' + v + '</td></tr>';
   const vf = f => (p.verified || []).indexOf(f) >= 0;
   let h = '<div class="card"><h3>' + esc(p.name || '（名称不明）') + '</h3>';
@@ -299,7 +308,9 @@ function popupHtml(p, lat, lon) {
   h += row(L.kind, !isUnk(p.kind) ? esc(p.kind) + (vf('kind') ? cf('確認済み', 'vf') : cf('自動推定', 'est')) : NA);
   // 創建・築造の時期
   let founded = '';
-  if (K) {
+  if (C) {
+    founded = p.founded ? esc(p.founded) + ((vf('founded') || vf('era')) ? cf('確認済み', 'vf') : p.era_note ? cf('推定・要確認', 'chk') : cf('Wikipedia', 'ok')) : '';
+  } else if (K) {
     founded = (p.founded ? esc(p.founded) : '古墳時代<span class="na">（詳しい時期は情報なし）</span>');
     founded += (vf('founded') || vf('era')) ? cf('確認済み', 'vf') : p.era_note ? cf('推定・要確認', 'chk') : (p.founded ? cf('Wikipedia', 'ok') : '');
   } else if (p.founded || p.era) {
@@ -309,9 +320,9 @@ function popupHtml(p, lat, lon) {
   }
   h += row(L.founded, founded || NA);
   h += row(L.deity, p.deity ? esc(p.deity) + (vf('deity') ? cf('確認済み', 'vf') : cf('Wikipedia', 'ok')) : NA);
-  if (K && p.size) h += row('規模', esc(p.size) + cf('Wikipedia', 'ok'));
+  if ((K || C) && p.size) h += row(C ? '遺構' : '規模', esc(p.size) + cf('Wikipedia', 'ok'));
   if (p.address) h += row('所在地', esc(p.address));
-  if (p.nearby) h += row(K ? '近くの神社' : '近くの古墳', esc(p.nearby[0]) + '（約' + p.nearby[1] + 'm）');
+  if (p.nearby) h += row(({ s: '近くの神社', k: '近くの古墳', c: '近くの城' })[p.nearby[2] || (K ? 's' : 'k')], esc(p.nearby[0]) + '（約' + p.nearby[1] + 'm）');
   if (p._d != null && near) h += row('距離', fmtD(p._d) + '（' + esc(near.label) + 'から）');
   const osmUrl = p.osm_id ? 'https://www.openstreetmap.org/' + p.osm_id : 'https://www.openstreetmap.org/?mlat=' + lat + '&mlon=' + lon + '#map=18/' + lat + '/' + lon;
   h += row('Wikipedia', p.wikipedia ? '<a target="_blank" rel="noopener" href="https://ja.wikipedia.org/wiki/' + encodeURIComponent(p.wikipedia) + '">' + esc(p.wikipedia) + '</a>' : NA);
@@ -332,7 +343,7 @@ function popupHtml(p, lat, lon) {
   h += '</div>';
   const srcs = [];
   srcs.push('名称・位置：' + (p.osm_id ? 'OpenStreetMap' : 'Wikipedia'));
-  if (p.wikipedia) srcs.push((K ? '指定・築造時期・規模・被葬者・説明：' : '社格・祭神・創建・由来：') + 'Wikipedia「' + esc(p.wikipedia) + '」(CC BY-SA)');
+  if (p.wikipedia) srcs.push((C ? '指定・築城・遺構・城主・説明：' : K ? '指定・築造時期・規模・被葬者・説明：' : '社格・祭神・創建・由来：') + 'Wikipedia「' + esc(p.wikipedia) + '」(CC BY-SA)');
   srcs.push(K ? '墳形：名称や説明の文字から自動で推定' : '系統・時代：上の文章から自動で推定');
   if (p.verified && p.verified.length) srcs.push('確認済み：運営が確認した項目');
   h += '<div class="src"><b>情報の出どころ</b><br>' + srcs.join('<br>') + '</div>';
@@ -366,13 +377,13 @@ function drawLegend() {
   } else {
     const cnt = {};
     vis.forEach(f => cnt[f.properties.kind] = (cnt[f.properties.kind] || 0) + 1);
-    h += '<div><b>色＝系統・墳形</b>（文字から推定）</div>';
+    h += '<div><b>色＝系統・墳形・城の区分</b>（文字から推定）</div>';
     Object.entries(cnt).filter(([k]) => !isUnk(k)).sort((a, b) => b[1] - a[1]).forEach(([k, n]) => {
       h += '<div class="lg"><i style="background:' + colorOf(k) + '"></i>' + esc(k) + '<em>' + n + '</em></div>';
     });
-    h += '<div class="lg"><i style="background:' + GREY + '"></i>灰色＝系統・墳形を判定できない<em>' + ((cnt['その他'] || 0) + (cnt['形不明'] || 0)) + '</em></div>';
+    h += '<div class="lg"><i style="background:' + GREY + '"></i>灰色＝系統・墳形・区分を判定できない<em>' + ((cnt['その他'] || 0) + (cnt['形不明'] || 0) + (cnt['区分不明'] || 0)) + '</em></div>';
   }
-  h += '<div class="sec"><b>形＝種類</b>　● 神社　■ 古墳</div>';
+  h += '<div class="sec"><b>形＝種類</b>　● 神社　■ 古墳　▲ 城</div>';
   h += '<div class="sec"><b>大きさ＝社格・指定</b>（大きいほど格が高い）<br>' +
     '<span class="lg"><i style="width:8px;height:8px;background:#777"></i>小：情報が少ない</span>' +
     '<span class="lg"><i style="width:12px;height:12px;background:#777"></i>中：式内社・県社・指定史跡など</span>' +
@@ -446,6 +457,10 @@ function pointMarker(f) {
     const sz = 9 + (p.rank >= 5 ? 7 : p.rank >= 3 ? 4 : p.rank >= 2 ? 2 : 0) + (nq ? 3 : 0);
     mk = L.marker([lat, lon], { icon: L.divIcon({ className: 'kf', iconSize: [sz, sz],
       html: '<i style="width:' + sz + 'px;height:' + sz + 'px;background:' + col + ';opacity:' + (p.rank >= 2 ? 0.95 : 0.65) + (nq ? ';border-color:#d32f2f' : '') + '"></i>' }) });
+  } else if (p.t === 'c') {
+    const sz = 12 + (p.rank >= 5 ? 6 : p.rank >= 3 ? 3 : 0) + (p.kind === '現存天守' ? 4 : 0) + (nq ? 4 : 0);
+    mk = L.marker([lat, lon], { icon: L.divIcon({ className: 'tri', iconSize: [sz, sz],
+      html: '<i style="width:' + sz + 'px;height:' + sz + 'px;background:' + (nq ? '#d32f2f' : col) + ';opacity:' + (p.rank >= 2 ? 0.95 : 0.65) + '"></i>' }) });
   } else {
     mk = L.circleMarker([lat, lon], { radius: (RADIUS[p.rank] || 3) + (nq ? 2 : 0), color: nq ? '#d32f2f' : '#fff', weight: nq ? 3 : 1,
       fillColor: col, fillOpacity: p.rank >= 2 ? 0.9 : 0.55 });
@@ -488,7 +503,7 @@ const DK = { o: 'osm_id', rl: 'rank_label', rs: 'rank_src', d: 'deity', f: 'foun
   w: 'website', in: 'intro', h: 'history', wp: 'wikipedia', wd: 'wikidata', vf: 'verified', sz: 'size', nb: 'nearby' };
 function ensureDetail(p, lat, lon, popup) {
   if (p._dl) { return; }
-  const dir = p.t === 'k' ? 'detail_k' : 'detail_s', key = dir + '/' + p.c;
+  const dir = DETAIL_DIR[p.t], key = dir + '/' + p.c;
   const done = () => popup.setContent(popupHtml(p, lat, lon));
   (detailCache[key] = detailCache[key] || fetch('data/' + key + '.json').then(r => r.status === 404 ? {} : r.ok ? r.json() : Promise.reject(r.status)))
     .then(d => { const x = d[p.i] || {}; Object.keys(x).forEach(k => { if (DK[k]) p[DK[k]] = x[k]; }); p._dl = 1; done(); })
@@ -504,12 +519,12 @@ function draw(fit) {
   $('fCount').textContent = list.length + ' 件';
   const nraw = $('nameQ').value.trim();
   $('nameHit').textContent = nraw ? '「' + nraw + '」に一致：' + list.length + ' 件' : '';
-  $('nameList').innerHTML = nraw ? listSorted.slice(0, 8).map((f, i) => '<div class="li" data-j="' + i + '"><i style="background:' + (colorBy === 'era' ? eraColor(f.properties.era) : colorOf(f.properties.kind)) + '"></i><div class="tx"><b>' + hl(f.properties.name, nq) + '</b><span class="lm">' + esc([f.properties.t === 'k' ? '古墳' : '', f.properties.pref, !isUnk(f.properties.kind) ? f.properties.kind : '', rankName(f.properties)].filter(Boolean).join(' ・ ')) + '</span></div><span class="go">' + (f.properties._d != null ? fmtD(f.properties._d) + ' ' : '') + '地図へ ›</span></div>').join('') + (list.length > 8 ? '<div class="small" style="margin-bottom:6px">ほか ' + (list.length - 8) + ' 社（「リストで見る」で全件）</div>' : '') : '';
+  $('nameList').innerHTML = nraw ? listSorted.slice(0, 8).map((f, i) => '<div class="li" data-j="' + i + '"><i style="background:' + (colorBy === 'era' ? eraColor(f.properties.era) : colorOf(f.properties.kind)) + '"></i><div class="tx"><b>' + hl(f.properties.name, nq) + '</b><span class="lm">' + esc([LAYER_NAME[f.properties.t], f.properties.pref, !isUnk(f.properties.kind) ? f.properties.kind : '', rankName(f.properties)].filter(Boolean).join(' ・ ')) + '</span></div><span class="go">' + (f.properties._d != null ? fmtD(f.properties._d) + ' ' : '') + '地図へ ›</span></div>').join('') + (list.length > 8 ? '<div class="small" style="margin-bottom:6px">ほか ' + (list.length - 8) + ' 社（「リストで見る」で全件）</div>' : '') : '';
   listLimit = 100;
   if (viewMode === 'list') renderList();
   const qv = $('q').value.trim();
   $('hint').textContent = (qv && !list.length) ? '「' + qv + '」に関わる神社は見つかりませんでした（神社の記事に名前が出る人物が対象です）' : (near ? near.label + 'から' + $('nearKm').value + 'km以内：' + list.length + ' 件' + (list.length ? '（近い順）' : '。範囲を広げてください') : list.length + ' / ' + all.length + ' 件を表示');
-  $('sub').textContent = '関東の神社・古墳 ' + all.length + ' 件';
+  $('sub').textContent = '関東の神社・古墳・城 ' + all.length + ' 件';
   if (fit && list.length && viewMode === 'map') {
     const pts = list.map(f => [f.geometry.coordinates[1], f.geometry.coordinates[0]]);
     if (near) pts.push([near.lat, near.lon]);
@@ -551,7 +566,7 @@ function renderList() {
   if (!listSorted.length) h += '<p class="small">条件に合う神社がありません。絞り込みをゆるめてください。</p>';
   h += shown.map((f, i) => {
     const p = f.properties;
-    const meta = [(p.t === 'k' ? '古墳' : ''), p.pref, !isUnk(p.kind) ? p.kind : '', rankName(p), p.era && p.t !== 'k' ? p.era + '時代' : ''].filter(Boolean).join(' ・ ');
+    const meta = [LAYER_NAME[p.t], p.pref, !isUnk(p.kind) ? p.kind : '', rankName(p), p.era && p.t !== 'k' ? p.era + '時代' : ''].filter(Boolean).join(' ・ ');
     return '<div class="li" data-i="' + i + '"><i style="background:' + (colorBy === 'era' ? eraColor(p.era) : colorOf(p.kind)) + '"></i><div class="tx"><b>' + hl(p.name || '（名称不明）', nq) + '</b><span class="lm">' + esc(meta || '情報なし') + '</span></div><span class="go">' + (p._d != null ? fmtD(p._d) + ' ' : '') + '地図へ ›</span></div>';
   }).join('');
   if (listSorted.length > listLimit) h += '<button class="btn" id="moreBtn">さらに表示（残り ' + (listSorted.length - listLimit) + ' 件）</button>';
@@ -648,7 +663,8 @@ function buildLearn() {
   const row = k => '<div class="kcard"><b><i style="display:inline-block;width:11px;height:11px;border-radius:50%;background:' + colorOf(k) + ';margin-right:6px"></i>' + esc(k) + '</b>' + kindInfoHtml(k) + '</div>';
   const keys = Object.keys(KIND_INFO);
   $('kindInfo').innerHTML = '<h3 style="margin:10px 0 2px">神社の系統</h3>' + keys.filter(k => !KIND_INFO[k].t).map(row).join('') +
-    '<h3 style="margin:14px 0 2px">古墳の墳形</h3><p class="small">一般的な説明です。古墳の形や時期は研究で見直されることがあります。</p>' + keys.filter(k => KIND_INFO[k].t === 'k').map(row).join('');
+    '<h3 style="margin:14px 0 2px">古墳の墳形</h3><p class="small">一般的な説明です。古墳の形や時期は研究で見直されることがあります。</p>' + keys.filter(k => KIND_INFO[k].t === 'k').map(row).join('') +
+    '<h3 style="margin:14px 0 2px">城の区分</h3><p class="small">天守が今も残っているか、建て直されたものか、城跡だけかの区分です。文章から機械的に判定しているため、誤りを含むことがあります。</p>' + keys.filter(k => KIND_INFO[k].t === 'c').map(row).join('');
 }
 function buildPersonSuggest() {
   const pc = {};
@@ -662,25 +678,30 @@ function updateStats() {
   const sum = sumG; if (!sum) return;
   let t = '収録 神社 ' + sum.total + ' 社のうち、主祭神が分かるもの ' + sum.with_deity + ' 社、由来の文章があるもの ' + sum.with_history + ' 社、Wikipedia 記事があるもの ' + sum.wiki_articles + ' 社。';
   if (sum.kofun) t += '古墳 ' + sum.kofun.total + ' 基（Wikipedia 記事があるもの ' + sum.kofun.wiki_articles + ' 基）。';
+  if (sum.castle) t += '城 ' + sum.castle.total + ' 件（Wikipedia 記事があるもの ' + sum.castle.wiki_articles + ' 件）。';
   $('stats').textContent = t + '更新日 ' + (sum.generated || '');
 }
 function updateLayerCounts() {
   $('cntS').textContent = allS.length ? ' ' + allS.length : '';
   $('cntK').textContent = kLoaded ? ' ' + allK.length : (sumG && sumG.kofun ? ' ' + sumG.kofun.total : '');
+  $('cntC').textContent = cLoaded ? ' ' + allC.length : (sumG && sumG.castle ? ' ' + sumG.castle.total : '');
   document.querySelectorAll('#layers .lyr').forEach(b => b.classList.toggle('on', !!layersOn[b.dataset.l]));
 }
 function refreshAfterData() { buildKinds(); buildPersonSuggest(); buildEraList(sumG); drawLegend(); updateStats(); updateLayerCounts(); }
 async function setLayer(l, on) {
-  if (l === 'k' && on && !kLoaded) {
-    $('hint').textContent = '古墳データを読み込み中…';
+  if (on && l !== 's' && !(l === 'k' ? kLoaded : cLoaded)) {
+    const nm = LAYER_NAME[l];
+    $('hint').textContent = nm + 'データを読み込み中…';
     try {
-      const core = await fetch('data/core_k.json').then(r => r.ok ? r.json() : Promise.reject(r.status));
-      allK = buildLayer(core, 'k'); kLoaded = true; all = allS.concat(allK);
+      const core = await fetch('data/core_' + l + '.json').then(r => r.ok ? r.json() : Promise.reject(r.status));
+      const arr = buildLayer(core, l);
+      if (l === 'k') { allK = arr; kLoaded = true; } else { allC = arr; cLoaded = true; }
+      all = allS.concat(allK, allC);
       refreshAfterData();
-    } catch (e) { $('hint').textContent = '古墳データを読み込めませんでした'; updateLayerCounts(); return; }
+    } catch (e) { $('hint').textContent = nm + 'データを読み込めませんでした'; updateLayerCounts(); return; }
   }
   layersOn[l] = on;
-  updateLayerCounts(); drawLegend(); draw(on && l === 'k');
+  updateLayerCounts(); drawLegend(); draw(on && l !== 's');
 }
 document.querySelectorAll('#layers .lyr').forEach(b => b.onclick = () => setLayer(b.dataset.l, !layersOn[b.dataset.l]));
 

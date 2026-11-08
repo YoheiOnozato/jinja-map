@@ -40,6 +40,17 @@ area["ISO3166-2"="%s"]->.a;
 );
 out center tags;
 """
+CASTLE_QUERY = """
+[out:json][timeout:300];
+area["ISO3166-2"="%s"]->.a;
+(
+  nwr["historic"="castle"](area.a);
+  nwr["castle_type"](area.a);
+  nwr["historic"="ruins"]["ruins"="castle"](area.a);
+  nwr["historic"]["name"~"城跡|城址|城趾|陣屋|館跡|砦跡|[^神社]城$"](area.a);
+);
+out center tags;
+"""
 OUT_DIR = os.path.join(os.path.dirname(__file__), "..", "build")
 
 
@@ -86,6 +97,9 @@ def to_feature(el, pref=""):
             "tumulus": tags.get("tumulus", ""),
             "heritage": tags.get("heritage", "") or tags.get("designation", ""),
             "start_date": tags.get("start_date", ""),
+            "historic": tags.get("historic", ""),
+            "castle_type": tags.get("castle_type", ""),
+            "ruins": tags.get("ruins", ""),
         },
     }
 
@@ -93,6 +107,7 @@ def to_feature(el, pref=""):
 def main():
     features, seen, stamp, per_pref = [], set(), "", {}
     kofun, kseen, per_pref_kofun = [], set(), {}
+    castle, cseen, per_pref_castle = [], set(), {}
     for iso, pname in PREFS:
         data = fetch(iso)
         stamp = data.get("osm3s", {}).get("timestamp_osm_base", "") or stamp
@@ -117,6 +132,17 @@ def main():
         per_pref_kofun[pname] = kn
         print(pname, "古墳", kn, flush=True)
         time.sleep(8)
+        cd = fetch(iso, CASTLE_QUERY)
+        cn = 0
+        for e in cd.get("elements", []):
+            f = to_feature(e, pname)
+            if f and f["properties"]["id"] not in cseen:
+                cseen.add(f["properties"]["id"])
+                castle.append(f)
+                cn += 1
+        per_pref_castle[pname] = cn
+        print(pname, "城", cn, flush=True)
+        time.sleep(8)
     total = len(features)
     named = sum(1 for f in features if f["properties"]["name"])
     summary = {
@@ -129,12 +155,16 @@ def main():
         "per_pref": per_pref,
         "kofun_total": len(kofun),
         "per_pref_kofun": per_pref_kofun,
+        "castle_total": len(castle),
+        "per_pref_castle": per_pref_castle,
     }
     os.makedirs(OUT_DIR, exist_ok=True)
     with open(os.path.join(OUT_DIR, "osm.geojson"), "w", encoding="utf-8") as fh:
         json.dump({"type": "FeatureCollection", "features": features}, fh, ensure_ascii=False)
     with open(os.path.join(OUT_DIR, "osm_kofun.geojson"), "w", encoding="utf-8") as fh:
         json.dump({"type": "FeatureCollection", "features": kofun}, fh, ensure_ascii=False)
+    with open(os.path.join(OUT_DIR, "osm_castle.geojson"), "w", encoding="utf-8") as fh:
+        json.dump({"type": "FeatureCollection", "features": castle}, fh, ensure_ascii=False)
     with open(os.path.join(OUT_DIR, "osm_summary.json"), "w", encoding="utf-8") as fh:
         json.dump(summary, fh, ensure_ascii=False, indent=2)
     print(json.dumps(summary, ensure_ascii=False, indent=2))

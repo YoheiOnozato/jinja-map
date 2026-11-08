@@ -4,6 +4,7 @@
 GitHub Actions 上で実行する想定。標準ライブラリのみ。
 """
 import json
+import re
 import os
 import sys
 import time
@@ -22,6 +23,8 @@ ROOTS = [("Category:%sの神社" % n, n) for n in PREF_NAMES] + [("Category:群�
         "常陸国一宮 下野国一宮 上野国一宮 武蔵国一宮 相模国一宮 上総国一宮 下総国一宮 安房国一宮").split()]
 KOFUN_ROOTS = [("Category:%sの古墳" % n, n) for n in PREF_NAMES] + [
     ("Category:%s" % c, "") for c in ("常陸国の古墳 下野国の古墳 上野国の古墳 武蔵国の古墳 相模国の古墳 上総国の古墳 下総国の古墳 安房国の古墳").split()]
+CASTLE_ROOTS = [("Category:%sの城" % n, n) for n in PREF_NAMES] + [
+    ("Category:%s" % c, "") for c in ("常陸国の城 下野国の城 上野国の城 武蔵国の城 相模国の城 上総国の城 下総国の城 安房国の城").split()]
 MAX_DEPTH = 3
 OUT = os.path.join(os.path.dirname(__file__), "..", "build", "wiki.json")
 HISTORY_HEADS = ("歴史", "由緒", "由来", "沿革", "歴史・由緒", "歴史と由緒", "縁起", "概要")
@@ -196,6 +199,43 @@ def digest_kofun(title, a):
     }
 
 
+def digest_castle(title, a):
+    tpl, info = find_infobox(a["wikitext"])
+    sections = split_sections(a["wikitext"])
+    intro = clean(sections[0][1])
+    history = ""
+    for head, body in sections[1:]:
+        if any(head.startswith(h) for h in HISTORY_HEADS + ("構造", "現状", "遺構", "城郭", "天守", "城主")):
+            history += clean(body) + "\n"
+            if len(history) > 1500:
+                break
+    cleaned = {k: clean(v)[:160] for k, v in info.items() if clean(v)}
+
+    def find(exact=(), words=()):
+        for k in exact:
+            if cleaned.get(k):
+                return cleaned[k]
+        for k, v in cleaned.items():
+            if any(w in k for w in words):
+                return v
+        return ""
+
+    return {
+        "title": title, "lat": a["lat"], "lon": a["lon"], "wikidata": a["wikidata"],
+        "template": tpl, "info_keys": sorted(info.keys()),
+        "name": find(("名称", "name"), ("名称",)) or title,
+        "tenshu": find(("天守構造", "天守"), ("天守",)),
+        "structure": find(("城郭構造", "structure"), ("城郭構造", "構造")),
+        "built": find(("築城年", "築年", "built"), ("築城年", "築年")),
+        "abolished": find(("廃城年",), ("廃城",)),
+        "lord": find(("主な城主",), ("城主",)),
+        "remains": find(("遺構",), ("遺構",)),
+        "designation": find(("指定文化財", "designation1"), ("指定", "文化財")),
+        "address": find(("所在地", "location"), ("所在地",)),
+        "intro": intro[:400], "history": history.strip()[:1500],
+    }
+
+
 def main():
     tpref, cats = category_pages()
     titles = sorted(tpref)
@@ -241,6 +281,24 @@ def main():
             kitems.append(d)
     print("古墳の記事:", len(kitems), "座標あり:", sum(1 for x in kitems if x["lat"] is not None),
           "情報欄の項目の例:", next((x["info_keys"] for x in kitems if x["info_keys"]), []))
+    # ---- 城 ----
+    cpref, ccats = category_pages(CASTLE_ROOTS)
+    ctitles = sorted(cpref)
+    print(f"城: カテゴリ {len(ccats)} 件 / 記事 {len(ctitles)} 件")
+    carts = fetch_articles(ctitles)
+    citems = []
+    for t, a in carts.items():
+        if a["lat"] is None:
+            continue
+        d = digest_castle(t, a)
+        d["pref"] = cpref.get(t, "")
+        # 城の記事だけ残す（カテゴリには城主・合戦・城下町なども混じるため）
+        if re.search(r"城|城跡|城址|陣屋|館|砦|要害|台場", t) and (d["structure"] or d["tenshu"] or d["built"] or re.search(r"城|館|陣屋|砦", d["intro"][:150])):
+            citems.append(d)
+    print("城の記事:", len(citems), "情報欄の項目の例:", next((x["info_keys"] for x in citems if x["info_keys"]), []),
+          "天守欄あり:", sum(1 for x in citems if x["tenshu"]))
+    with open(os.path.join(os.path.dirname(OUT), "wiki_castle.json"), "w", encoding="utf-8") as fh:
+        json.dump(citems, fh, ensure_ascii=False)
     with open(os.path.join(os.path.dirname(OUT), "wiki_kofun.json"), "w", encoding="utf-8") as fh:
         json.dump(kitems, fh, ensure_ascii=False)
 

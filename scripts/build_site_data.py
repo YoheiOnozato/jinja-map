@@ -11,7 +11,7 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
-from era import ERA_NAMES, estimate  # noqa: E402
+from era import ERA_NAMES, era_of_year, estimate  # noqa: E402
 
 BASE = os.path.join(os.path.dirname(__file__), "..")
 OUT_DIR = os.path.join(BASE, "site", "data")
@@ -257,39 +257,175 @@ def build_kofun(osm_k, wiki_k):
     return out, stat
 
 
-def link_nearby(shrines, kofun):
-    """神社 ⇔ 古墳 の近接（150m 以内で最も近いもの）を props["nearby"] = [名前, 距離m] に記録する。"""
-    grid = {}
-    for f in kofun:
-        lo, la = f["geometry"]["coordinates"]
-        grid.setdefault((int(la / 0.003), int(lo / 0.003)), []).append(f)
+# ---- 城 ----
+# 現存12天守（日本全国）。関東には現存天守はない。
+GENZON_TENSHU = {"弘前城", "松本城", "丸岡城", "犬山城", "彦根城", "姫路城", "松江城", "備中松山城", "丸亀城", "松山城 (伊予国)", "宇和島城", "高知城"}
+CASTLE_KINDS = ["現存天守", "復元・再建天守", "城跡（櫓・門などが残る）", "城跡（石垣・土塁・堀など）", "区分不明"]
+CASTLE_RANKS = [
+    (5, "国指定史跡", ["特別史跡", "国の史跡", "国指定史跡", "国史跡", "国宝", "重要文化財"]),
+    (5, "日本100名城", ["日本100名城", "続日本100名城", "日本の100名城", "続100名城", "日本百名城"]),
+    (4, "県指定史跡", ["県指定", "県史跡", "県の史跡", "都指定", "都史跡"]),
+    (3, "市町村指定史跡", ["市指定", "町指定", "村指定", "市史跡", "町史跡", "村史跡", "市の史跡", "町の史跡", "村の史跡"]),
+]
+RE_KEEP_REBUILT = re.compile(r"(天守|天守閣|大天守)[^。]{0,25}(復元|復興|再建|模擬|再現)|(復元|復興|再建|模擬|再現)[^。]{0,12}(天守|天守閣)")
+RE_KEEP_NONE = re.compile(r"天守[^。]{0,12}(なかった|存在しな|築かれ|造られ|上げられ)")
+RE_BUILDINGS = re.compile(r"(櫓|門|御殿|書院|多門)[^。]{0,20}(現存|復元|再建|復興)|(現存|復元|再建|復興)[^。]{0,12}(櫓|門|御殿)|重要文化財")
+RE_RUINS_NAME = re.compile(r"城跡|城址|城趾|館跡|陣屋跡|砦跡|館址")
 
-    def nearest(lo, la, cand_grid, limit=150):
+
+def castle_kind(name, w, op):
+    title = w.get("title", "")
+    ten = w.get("tenshu", "")
+    body = " ".join([ten, w.get("remains", ""), w.get("intro", ""), w.get("history", "")[:700]])
+    if title in GENZON_TENSHU or re.search(r"現存", ten):
+        return "現存天守"
+    if re.search(r"復元|復興|再建|模擬|再現", ten) or (RE_KEEP_REBUILT.search(body) and not RE_KEEP_NONE.search(body)):
+        return "復元・再建天守"
+    if w and RE_BUILDINGS.search(body):
+        return "城跡（櫓・門などが残る）"
+    if w or op.get("ruins") == "castle" or op.get("historic") == "ruins" or RE_RUINS_NAME.search(name):
+        return "城跡（石垣・土塁・堀など）"
+    return "区分不明"
+
+
+def build_castle(osm_c, wiki_c):
+    by_title = {w["title"]: w for w in wiki_c}
+    for w in wiki_c:
+        w["_n"] = norm_name(w["name"])
+        w["_t"] = norm_name(w["title"])
+    used, out, seen_pts = set(), [], []
+
+    def make(name, lon, lat, w, op):
+        w = w or {}
+        op = op or {}
+        intro, history = w.get("intro", ""), w.get("history", "")
+        kind = castle_kind(name, w, op)
+        des_text = " ".join([w.get("designation", ""), intro, op.get("heritage", "")])
+        score, label = 1, ""
+        for sc, lb, kws in CASTLE_RANKS:
+            if any(k in des_text for k in kws):
+                score, label = sc, lb
+                break
+        if kind == "現存天守" and score < 5:
+            score, label = 5, "現存天守"
+        if score == 1 and w:
+            score = 2
+        rank_src = "wikipedia" if (w.get("designation") and label) else ("auto" if label else "")
+        built = w.get("built", "")
+        if built and w.get("abolished"):
+            built += "（廃城：" + w["abolished"] + "）"
+        elif w.get("abolished"):
+            built = "廃城：" + w["abolished"]
+        year, era = None, ""
+        m = re.search(r"(?<![0-9])(\d{3,4})年", w.get("built", "") or op.get("start_date", ""))
+        if m and 600 <= int(m.group(1)) <= 1900:
+            year = int(m.group(1))
+            era = era_of_year(year)
+        persons = persons_in(" ".join([name, w.get("lord", ""), intro]))
+        return {
+            "geometry": {"coordinates": [lon, lat]},
+            "properties": {
+                "name": name, "deity": w.get("lord", ""), "rank": score, "rank_label": label, "rank_src": rank_src,
+                "osm_id": op.get("id", ""), "pref": op.get("pref", "") or w.get("pref", ""),
+                "kind": kind, "founded": built, "founded_year": year, "era": era,
+                "era_note": "" if w.get("built") else "推定",
+                "address": w.get("address", ""), "website": op.get("website", ""),
+                "intro": intro[:300], "history": history[:900], "size": w.get("remains", ""),
+                "persons": persons, "people": [], "wikipedia": w.get("title", ""),
+                "wikidata": w.get("wikidata", "") or op.get("wikidata", ""),
+            },
+        }
+
+    for f in osm_c:
+        p = f["properties"]
+        lon, lat = f["geometry"]["coordinates"]
+        name = p.get("name", "")
+        w = None
+        wp = p.get("wikipedia", "")
+        if wp.startswith("ja:") and wp[3:] in by_title:
+            w = by_title[wp[3:]]
+        if w is None and name:
+            pn = norm_name(name)
+            for cand in wiki_c:
+                if cand["lat"] is None:
+                    continue
+                if (cand["_n"] == pn or cand["_t"] == pn) and haversine(lat, lon, cand["lat"], cand["lon"]) < 2000:
+                    w = cand
+                    break
+        if w:
+            if w["title"] in used:
+                continue  # 同じ城の別の点（本丸・二の丸など）は1つにまとめる
+            used.add(w["title"])
+        elif name and any(n == name and haversine(lat, lon, la, lo) < 1000 for n, la, lo in seen_pts):
+            continue
+        seen_pts.append((name, lat, lon))
+        out.append(make(name or (w or {}).get("name", "（名称不明の城）"), lon, lat, w, p))
+    added = 0
+    for w in wiki_c:
+        if w["title"] in used or w["lat"] is None or w["lon"] is None:
+            continue
+        out.append(make(w["name"], w["lon"], w["lat"], w, None))
+        added += 1
+    pts = [(f["geometry"]["coordinates"][1], f["geometry"]["coordinates"][0], f["properties"]["pref"]) for f in out if f["properties"]["pref"]]
+    for f in out:
+        pr = f["properties"]
+        if pr["pref"]:
+            continue
+        for n_ in PREFS:
+            if n_ in (pr.get("address") or ""):
+                pr["pref"] = n_
+                break
+        if not pr["pref"] and pts:
+            lo, la = f["geometry"]["coordinates"]
+            pr["pref"] = min(pts, key=lambda t: (t[0] - la) ** 2 + (t[1] - lo) ** 2)[2]
+    stat = {"total": len(out), "osm": len(osm_c), "wiki_articles": len(wiki_c), "wiki_added": added,
+            "kind_dist": {}, "rank_dist": {}}
+    for f in out:
+        k = f["properties"]["kind"]
+        stat["kind_dist"][k] = stat["kind_dist"].get(k, 0) + 1
+        r = str(f["properties"]["rank"])
+        stat["rank_dist"][r] = stat["rank_dist"].get(r, 0) + 1
+    return out, stat
+
+
+def link_nearby(shrines, kofun, castles=()):
+    """神社・古墳・城のうち近いもの（古墳は150m、城は300m 以内）を props["nearby"] = [名前, 距離m, 種類] に記録する。
+    種類は 's'=神社 'k'=古墳 'c'=城。神社は古墳を優先し、なければ城を記録する。"""
+
+    def mkgrid(feats):
+        g = {}
+        for f in feats:
+            lo, la = f["geometry"]["coordinates"]
+            g.setdefault((int(la / 0.003), int(lo / 0.003)), []).append(f)
+        return g
+
+    def nearest(lo, la, grid, limit):
         best = None
         gy, gx = int(la / 0.003), int(lo / 0.003)
         for dy in (-1, 0, 1):
             for dx in (-1, 0, 1):
-                for g in cand_grid.get((gy + dy, gx + dx), ()):
+                for g in grid.get((gy + dy, gx + dx), ()):
                     glo, gla = g["geometry"]["coordinates"]
                     d = haversine(la, lo, gla, glo)
                     if d <= limit and (best is None or d < best[0]):
                         best = (d, g)
         return best
 
+    kgrid, cgrid, sgrid = mkgrid(kofun), mkgrid(castles), mkgrid(shrines)
     for f in shrines:
         lo, la = f["geometry"]["coordinates"]
-        b = nearest(lo, la, grid)
+        b = nearest(lo, la, kgrid, 150)
+        t = "k"
+        if not b:
+            b, t = nearest(lo, la, cgrid, 300), "c"
         if b:
-            f["properties"]["nearby"] = [b[1]["properties"]["name"], int(b[0])]
-    sgrid = {}
-    for f in shrines:
-        lo, la = f["geometry"]["coordinates"]
-        sgrid.setdefault((int(la / 0.003), int(lo / 0.003)), []).append(f)
-    for f in kofun:
-        lo, la = f["geometry"]["coordinates"]
-        b = nearest(lo, la, sgrid)
-        if b:
-            f["properties"]["nearby"] = [b[1]["properties"]["name"], int(b[0])]
+            f["properties"]["nearby"] = [b[1]["properties"]["name"], int(b[0]), t]
+    for feats in (kofun, castles):
+        for f in feats:
+            lo, la = f["geometry"]["coordinates"]
+            b = nearest(lo, la, sgrid, 300 if f in castles else 150)
+            if b:
+                f["properties"]["nearby"] = [b[1]["properties"]["name"], int(b[0]), "s"]
 
 
 # 詳細ファイルの短い項目名
@@ -355,6 +491,8 @@ def main():
             d = json.load(fh)
         return d[key] if key else d
     osm_k = load_opt("osm_kofun.geojson", "features")
+    osm_c = load_opt("osm_castle.geojson", "features")
+    wiki_c = load_opt("wiki_castle.json")
     wiki_k = load_opt("wiki_kofun.json")
 
     by_title = {w["title"]: w for w in wiki}
@@ -505,21 +643,24 @@ def main():
     summary["kofun"] = kstat
 
     # ---- 近くの神社・古墳（150m 以内で最も近いもの）をお互いに記録 ----
-    link_nearby(features, kofun_features)
+    castle_features, cstat = build_castle(osm_c, wiki_c)
+    summary["castle"] = cstat
+    link_nearby(features, kofun_features, castle_features)
 
     # ---- 書き出し：地図用の軽いデータ(列ごとの配列)と、タップ時に読む詳細ファイル ----
     os.makedirs(OUT_DIR, exist_ok=True)
-    for sub in ("detail_s", "detail_k"):
+    for sub in ("detail_s", "detail_k", "detail_c"):
         d = os.path.join(OUT_DIR, sub)
         if os.path.isdir(d):
             for fn in os.listdir(d):
                 os.remove(os.path.join(d, fn))
     n_s = write_layer("core_s.json", "detail_s", features)
     n_k = write_layer("core_k.json", "detail_k", kofun_features)
-    summary["detail_files"] = n_s + n_k
+    n_c = write_layer("core_c.json", "detail_c", castle_features)
+    summary["detail_files"] = n_s + n_k + n_c
     with open(os.path.join(OUT_DIR, "version.txt"), "w") as fh:
         fh.write(str(DATA_VERSION))
-    for fn in ("core_s.json", "core_k.json"):
+    for fn in ("core_s.json", "core_k.json", "core_c.json"):
         print(fn, "bytes:", os.path.getsize(os.path.join(OUT_DIR, fn)))
     with open(os.path.join(OUT_DIR, "persons.json"), "w", encoding="utf-8") as fh:
         json.dump(PERSONS, fh, ensure_ascii=False)
