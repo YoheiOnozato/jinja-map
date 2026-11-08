@@ -359,7 +359,7 @@ function matchPerson(f, terms) {
   const p = f.properties;
   if ((p.persons || []).some(x => terms.includes(x))) return true;
   if ((p.people || []).some(x => terms.some(t => x === t || (t.length >= 2 && x.includes(t))))) return true;
-  const text = p.name + ' ' + p.deity;
+  const text = p.name + ' ' + (p.deity || '');
   return terms.some(t => text.includes(t));
 }
 const normN = t => (t || '').normalize('NFKC').replace(/\s+/g, '').toLowerCase();
