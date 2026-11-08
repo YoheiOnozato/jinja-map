@@ -15,7 +15,7 @@ from wikitext import clean, find_infobox, split_sections  # noqa: E402
 
 API = "https://ja.wikipedia.org/w/api.php"
 UA = "jinja-map-gunma/0.1 (https://github.com/YoheiOnozato/jinja-map)"
-ROOT = "Category:群馬県の神社"
+ROOTS = ["Category:群馬県の神社", "Category:上野国の式内社", "Category:上野国一宮", "Category:群馬県の神道"]
 MAX_DEPTH = 3
 OUT = os.path.join(os.path.dirname(__file__), "..", "build", "wiki.json")
 HISTORY_HEADS = ("歴史", "由緒", "由来", "沿革", "歴史・由緒", "歴史と由緒", "縁起", "概要")
@@ -38,7 +38,7 @@ def call(params):
 def category_pages():
     """カテゴリを再帰的にたどり、記事（標準名前空間）のタイトル集合を返す。"""
     seen_cats, titles = set(), set()
-    queue = [(ROOT, 0)]
+    queue = [(r, 0) for r in ROOTS]
     while queue:
         cat, depth = queue.pop(0)
         if cat in seen_cats:
@@ -119,6 +119,7 @@ def digest(title, a):
 def main():
     titles, cats = category_pages()
     print(f"カテゴリ {len(cats)} 件 / 記事 {len(titles)} 件")
+    print("カテゴリ一覧:", " / ".join(cats))
     arts = fetch_articles(titles)
     items = [digest(t, a) for t, a in arts.items()]
     with_coord = sum(1 for x in items if x["lat"] is not None)
