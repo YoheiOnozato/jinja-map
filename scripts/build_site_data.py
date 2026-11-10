@@ -317,8 +317,6 @@ def castle_kind(name, w, op):
         return "復元・再建天守"
     if ten and RE_TEN_REBUILT.search(ten):
         return "復元・再建天守"
-    if not (ten and RE_TEN_NONE.search(ten)) and RE_KEEP_REBUILT.search(body) and not RE_KEEP_NONE.search(body):
-        return "復元・再建天守"
     if not w and re.search(r"天守", name):  # 名前に「天守（閣）」とある点で、記事に結びつかないもの（関東に現存天守はない）
         return "復元・再建天守"
     if w and RE_BUILDINGS.search(" ".join([ten, body])):
