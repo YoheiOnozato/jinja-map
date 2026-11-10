@@ -307,19 +307,28 @@ def castle_norm(name):
     return norm_name(n)
 
 
+RE_TEN_NOTOWER = re.compile(r"^[\s\-－―ー—]*(なし|無し|代用|御三階櫓|三階櫓|二重櫓|櫓|不明|$)")
+RE_KEEP_COMPOUND = re.compile(r"(模擬|復興|復元|再建|外観復元)(された)?(大|小)?天守(?!台)")
+
+
 def castle_kind(name, w, op):
     title = w.get("title", "")
-    ten = w.get("tenshu", "")
+    ten = w.get("tenshu", "").strip()
+    rebuilt = w.get("rebuilt", "")
     if title in GENZON_TENSHU or (re.search(r"現存", ten) and not re.search(r"非現存|現存せず|現存しな|焼失|失われ|消失", ten)):
         return "現存天守"
-    body = " ".join([w.get("remains", ""), w.get("rebuilt", ""), w.get("intro", ""), w.get("history", "")[:700]])
-    if re.search(r"(?:大|小)?天守(?!台)", w.get("rebuilt", "")):
+    body = " ".join([w.get("remains", ""), rebuilt, w.get("intro", ""), w.get("history", "")[:700]])
+    # 天守構造の欄: 「なし」「代用（櫓）」「御三階櫓…」で始まるものは天守ではない
+    if ten and not RE_TEN_NOTOWER.search(ten) and RE_TEN_REBUILT.search(ten):
         return "復元・再建天守"
-    if ten and RE_TEN_REBUILT.search(ten):
+    if re.search(r"(?<!櫓)天守(?!台)", rebuilt):
         return "復元・再建天守"
-    if not w and re.search(r"天守", name):  # 名前に「天守（閣）」とある点で、記事に結びつかないもの（関東に現存天守はない）
+    # 「模擬天守」「復興天守」のような言葉が本文にあるときだけ（「櫓が復元された」などは対象外）
+    if RE_KEEP_COMPOUND.search(body) and not RE_KEEP_NONE.search(body):
         return "復元・再建天守"
-    if w and RE_BUILDINGS.search(" ".join([ten, body])):
+    if not w and re.search(r"天守(?!台)", name):  # 名前に「天守（閣）」とある点で、記事に結びつかないもの（関東に現存天守はない）
+        return "復元・再建天守"
+    if w and (rebuilt.strip() or RE_BUILDINGS.search(" ".join([ten, body]))):
         return "城跡（櫓・門などが残る）"
     if w or op.get("ruins") == "castle" or op.get("historic") == "ruins" or RE_RUINS_NAME.search(name):
         return "城跡（石垣・土塁・堀など）"
