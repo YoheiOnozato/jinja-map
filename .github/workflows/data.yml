@@ -26,8 +26,14 @@ jobs:
     timeout-minutes: 240
     steps:
       - uses: actions/checkout@v4
-      - name: OpenStreetMap から神社・古墳を取得
-        run: python3 scripts/fetch_osm.py
+      - name: OpenStreetMap から神社・古墳・城を取得（Overpass が不調のときは最大3回やり直す）
+        run: |
+          for i in 1 2 3; do
+            python3 scripts/fetch_osm.py && exit 0
+            echo "取得に失敗しました（$i 回目）。10分待ってやり直します"
+            sleep 600
+          done
+          exit 1
       - name: Wikipedia から神社・古墳の記事を取得
         run: python3 scripts/fetch_wiki.py
       - name: 群馬県オープンデータから古墳を取得（失敗しても続行）
