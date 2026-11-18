@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - "site/**"
+      - "scripts/gen_pages.py"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
   workflow_run:
@@ -47,6 +48,9 @@ jobs:
         run: |
           mkdir -p site/data
           git archive FETCH_HEAD | tar -x -C site/data
+      - name: 神社ごとのページを作る（群馬県）
+        if: steps.chk.outputs.ok == 'true'
+        run: python3 scripts/gen_pages.py site/data site 群馬県
       - name: 公開の準備
         if: steps.chk.outputs.ok == 'true'
         uses: actions/configure-pages@v5
