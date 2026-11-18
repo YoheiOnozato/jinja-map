@@ -9,7 +9,10 @@ on:
   push:
     branches: [main]
     paths:
-      - "scripts/**"
+      - "scripts/fetch_*.py"
+      - "scripts/build_site_data.py"
+      - "scripts/wikitext.py"
+      - "scripts/era.py"
       - "data/overrides.json"
       - ".github/workflows/data.yml"
 
