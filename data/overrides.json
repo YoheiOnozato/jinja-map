@@ -1,3 +1,78 @@
 {
-  "_説明": "ここに確認済みの修正を書きます。キーは神社のID（OSMなら node/123 や way/456、Wikipediaのみなら wikipedia:記事名）。使える項目は name, kind, rank_label, founded, era, deity, address。例: \"node/123456\": {\"deity\": \"誉田別命\", \"founded\": \"1185年\"} 行事は events に [{\"n\":\"初詣\",\"d\":\"1月1日〜3日\",\"u\":\"出典URL(任意)\"}] の形で書けます（日付は神社の公式発表で確認したものだけ）。"
+  "_説明": "ここに確認済みの修正を書きます。キーは神社のID（OSMなら node/123 や way/456、Wikipediaのみなら wikipedia:記事名）。使える項目は name, kind, rank_label, founded, era, deity, address。例: \"node/123456\": {\"deity\": \"誉田別命\", \"founded\": \"1185年\"} 行事は events に [{\"n\":\"初詣\",\"d\":\"1月1日〜3日\",\"u\":\"出典URL(任意)\"}] の形で書けます（日付は神社の公式発表で確認したものだけ）。",
+  "way/379358110": {
+    "events": [
+      {
+        "n": "初詣の人出（例年）",
+        "d": "約8万人（群馬県内1位）",
+        "u": "https://sp.jorudan.co.jp/newyear/spot_47568.html"
+      },
+      {
+        "n": "混雑する時間帯（2026年の案内）",
+        "d": "1月1日10〜18時、2日10〜17時、3日11〜17時",
+        "u": "https://rurubu.jp/andmore/spot/80007895/hatsumode"
+      },
+      {
+        "n": "水的神事（弓で的を射て農業用水の量を占う）",
+        "d": "2026年は1月3日11時〜、総門の東側",
+        "u": "https://rurubu.jp/andmore/spot/80007895/hatsumode"
+      },
+      {
+        "n": "お守り等の授与・駐車場（2026年の案内）",
+        "d": "授与は12月31日〜1月1日19時頃、1月2日以降は8時30分〜17時頃。12月31日夜〜1月3日は臨時駐車場（500円）",
+        "u": "https://rurubu.jp/andmore/spot/80007895/hatsumode"
+      }
+    ]
+  },
+  "wikipedia:妙義神社": {
+    "events": [
+      {
+        "n": "初詣の人出（例年）",
+        "d": "三が日で約3万5000人",
+        "u": "https://sp.jorudan.co.jp/newyear/spot_0032.html"
+      },
+      {
+        "n": "新年初祈祷",
+        "d": "1月1日〜7日、随時受付（2026年の案内）",
+        "u": "https://sp.jorudan.co.jp/newyear/spot_0032.html"
+      },
+      {
+        "n": "混雑する時間帯（2026年の案内）",
+        "d": "1月1日〜3日の10時30分〜15時30分。年末年始は道の駅みょうぎの無料駐車場などを利用",
+        "u": "https://rurubu.jp/andmore/article/5329"
+      }
+    ]
+  },
+  "way/631522240": {
+    "events": [
+      {
+        "n": "初詣の人出（例年）",
+        "d": "約1万2000人。無料駐車場あり（100台）",
+        "u": "https://sp.jorudan.co.jp/newyear/spot_47566.html"
+      }
+    ]
+  },
+  "node/5153800139": {
+    "events": [
+      {
+        "n": "初詣の人出（例年）",
+        "d": "約1万2000人",
+        "u": "https://sp.jorudan.co.jp/newyear/spot_47570.html"
+      },
+      {
+        "n": "元旦祭",
+        "d": "0時から。一般の参拝者も参列でき、先着100組に破魔矢を授与（2026年の案内）",
+        "u": "https://sp.jorudan.co.jp/newyear/spot_47570.html"
+      }
+    ]
+  },
+  "way/911688966": {
+    "events": [
+      {
+        "n": "初詣の人出（例年）",
+        "d": "約4万人",
+        "u": "https://sp.jorudan.co.jp/newyear/spot_106386.html"
+      }
+    ]
+  }
 }
