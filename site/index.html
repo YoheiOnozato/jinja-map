@@ -339,6 +339,7 @@ function popupHtml(p, lat, lon) {
   if (p._derr) h += '<p class="small">詳細を読み込めませんでした（通信状況をご確認ください）。</p>';
   if (p.intro) h += '<p>' + esc(p.intro) + '</p>';
   if (p.persons && p.persons.length) h += '<p>ゆかりの人物：' + p.persons.map(x => '<span class="pp" data-p="' + esc(x) + '">' + esc(x) + '</span>').join('') + '</p>';
+  if (p.events && p.events.length) h += '<p><b>行事・イベント</b></p><ul style="margin:4px 0 8px 18px;padding:0">' + p.events.map(e => '<li>' + esc(e.n) + (e.d ? '：' + esc(e.d) : '') + (e.u ? ' <a target="_blank" rel="noopener" href="' + esc(e.u) + '">出典</a>' : '') + '</li>').join('') + '</ul>';
   if (p.history) h += '<details><summary>▶ 歴史・由来（Wikipedia）</summary><p>' + esc(p.history).replace(/\n/g, '<br>') + '</p></details>';
   h += '<div class="links">';
   h += '<a target="_blank" rel="noopener" href="https://ndlsearch.ndl.go.jp/search?cs=bib&keyword=' + encodeURIComponent(p.name) + '">国立国会図書館</a>';
@@ -506,7 +507,7 @@ map.on('moveend', renderView);
 // ---- 詳細（由来など長い文章・OSMの番号など）は、タップした時に該当エリアのファイルから取得 ----
 const detailCache = {};
 const DK = { o: 'osm_id', rl: 'rank_label', rs: 'rank_src', d: 'deity', f: 'founded', fy: 'founded_year', en: 'era_note', a: 'address',
-  w: 'website', in: 'intro', h: 'history', wp: 'wikipedia', wd: 'wikidata', vf: 'verified', sz: 'size', nb: 'nearby' };
+  w: 'website', in: 'intro', h: 'history', wp: 'wikipedia', wd: 'wikidata', vf: 'verified', sz: 'size', nb: 'nearby', ev: 'events' };
 function ensureDetail(p, lat, lon, popup) {
   if (p._dl) { return; }
   const dir = DETAIL_DIR[p.t], key = dir + '/' + p.c;

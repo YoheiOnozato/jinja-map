@@ -479,7 +479,7 @@ def link_nearby(shrines, kofun, castles=()):
 DETAIL_KEYS = [
     ("osm_id", "o"), ("rank_label", "rl"), ("rank_src", "rs"), ("deity", "d"), ("founded", "f"), ("founded_year", "fy"),
     ("era_note", "en"), ("address", "a"), ("website", "w"), ("intro", "in"), ("history", "h"),
-    ("wikipedia", "wp"), ("wikidata", "wd"), ("verified", "vf"), ("size", "sz"), ("nearby", "nb"), ("src", "sr"),
+    ("wikipedia", "wp"), ("wikidata", "wd"), ("verified", "vf"), ("size", "sz"), ("nearby", "nb"), ("src", "sr"), ("events", "ev"),
 ]
 
 
@@ -652,6 +652,9 @@ def main():
         ov = overrides.get(key) or (overrides.get("wikipedia:" + pr["wikipedia"]) if pr.get("wikipedia") else None)
         if not ov:
             continue
+        evs = [e for e in (ov.get("events") or []) if isinstance(e, dict) and e.get("n")]
+        if evs:
+            pr["events"] = [{k: e[k] for k in ("n", "d", "u") if e.get(k)} for e in evs]
         done = [k for k in OV_FIELDS if ov.get(k)]
         for k in done:
             pr[k] = ov[k]
@@ -659,7 +662,8 @@ def main():
             pr["rank_src"] = "verified"
         if "era" in done:
             pr["era_note"] = ""
-        pr["verified"] = done
+        if done:
+            pr["verified"] = done
         ov_applied += 1
     print("overrides applied:", ov_applied, "/", len(overrides))
 

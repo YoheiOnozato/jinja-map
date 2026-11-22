@@ -38,7 +38,7 @@ def main():
         d = det.get(str(i), {})
         if pref not in want or name.startswith("（") or not (d.get("o") or d.get("wd")):
             continue
-        if not (core["r"][i] > 1 or any(k in d for k in ("in", "h", "d", "f", "fy", "wp", "rl"))):
+        if not (core["r"][i] > 1 or any(k in d for k in ("in", "h", "d", "f", "fy", "wp", "rl", "ev"))):
             continue
         items.append((i, name, pref, d))
     slug = lambda d: (d.get("o") or d["wd"]).replace("/", "-")
@@ -69,6 +69,9 @@ def main():
         tbl = "".join("<tr><th>%s</th><td>%s</td></tr>" % (k, E(v)) for k, v in rows if v)
         intro = d.get("in") or ""
         desc = (intro or "%s（%s）の神社。" % (name, place))[:110]
+        evh = ""
+        if d.get("ev"):
+            evh = "<h2>行事・イベント</h2><ul>%s</ul>" % "".join("<li>%s%s%s</li>" % (E(e["n"]), "：" + E(e["d"]) if e.get("d") else "", ' <a href="%s">出典</a>' % E(e["u"]) if e.get("u") else "") for e in d["ev"])
         near = ""
         lis = []
         for n, dist, t in nbs(d.get("nb")):
@@ -87,7 +90,7 @@ def main():
         body = ('<nav><a href="../">神社マップ</a> › <a href="index.html">%s の神社</a></nav><h1>%s（%s）</h1>%s<table>%s</table>%s%s'
                 '<a class="btn" href="../#17/%.5f/%.5f">地図で見る</a>%s<p class="small">%s。社格・系統・時代は文章から機械的に読み取っており、誤りを含むことがあります。</p></body></html>'
                 % (E(pref), E(name), E(place), ("<p>%s</p>" % E(intro)) if intro else "", tbl,
-                   ("<h2>由来・歴史</h2>%s" % paras(d["h"])) if d.get("h") else "", "", lat, lon, near, "<br>".join(src)))
+                   ("<h2>由来・歴史</h2>%s" % paras(d["h"])) if d.get("h") else "", evh, lat, lon, near, "<br>".join(src)))
         page = head("%s（%s）の祭神・由来・アクセス｜関東の神社・古墳・城マップ" % (name, place), desc, BASE + "jinja/%s.html" % s,
                     '<script type="application/ld+json">%s</script>' % ld.replace("</", "<\\/")) + body
         open(os.path.join(out, s + ".html"), "w", encoding="utf-8").write(page)
